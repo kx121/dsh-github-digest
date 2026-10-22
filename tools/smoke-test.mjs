@@ -600,6 +600,22 @@ eq(fired2.created, false, '复用时不新建')
 eq(integ.state.created.length, 0, '复用路径没有调用 create')
 eq(integ.state.messages.length, 1, '复用会话收到新消息')
 
+// 15.3b 当天会话被归档：不复用，新建一个
+// 归档会话投递能成功，但宿主 archived-session-gate 会在 agent/pre-step 拒绝，这一轮静默 blocked。
+resetRuns()
+fs.writeFileSync(historyFile2, JSON.stringify({ at: '2026-10-22 08:30:00', sessionId: 'session-created-1', trigger: 'schedule', result: 'ok' }) + '\n', 'utf8')
+integ.state.services.workspaceRegistry.archivedSessionIds = ['session-created-1']
+const firedArchived = await runner.fire('manual', '测试当天会话已归档')
+delete integ.state.services.workspaceRegistry.archivedSessionIds
+eq(firedArchived.created, true, '当天会话已归档时新建会话')
+ok(firedArchived.sessionId !== 'session-created-1', '不复用已归档的会话')
+eq(t.readPending(pendingFile2).sessionId, firedArchived.sessionId, 'pending 指向新会话，下一轮不会再捡回归档的')
+
+// 还原 15.4 依赖的状态（15.3b 的 resetRuns 清过 agents）
+resetRuns()
+fs.writeFileSync(historyFile2, JSON.stringify({ at: '2026-10-22 08:50:00', sessionId: 'session-created-1', trigger: 'schedule', result: 'ok' }) + '\n', 'utf8')
+integ.state.agents.set('session-created-1', { id: 'session-created-1', followup: (message) => integ.state.messages.push(message) })
+
 // 15.4 会话忙时不复用
 integ.state.agents.get('session-created-1').status = 'running'
 const fired3 = await runner.fire('manual', '测试忙时')
@@ -623,6 +639,16 @@ const fired5 = await runner.fire('schedule', '测试锁定会话')
 eq(fired5.ok, true, '指定会话触发成功')
 eq(fired5.sessionId, 'session-fixed', '使用指定的目标会话')
 eq(integ.state.created.length, 0, '指定会话时不新建')
+
+// 15.6a 锁定的目标会话被归档：直接报错，不往归档会话里投
+resetRuns()
+integ.state.services.workspaceRegistry.archivedSessionIds = ['session-fixed-archived']
+t.saveStoredConfig({ target_session_id: 'session-fixed-archived' }, configFile)
+const firedArchivedTarget = await runner.fire('manual', '测试锁定会话已归档')
+delete integ.state.services.workspaceRegistry.archivedSessionIds
+eq(firedArchivedTarget.ok, false, '锁定归档会话时触发失败')
+eq(firedArchivedTarget.code, 'TARGET_ARCHIVED', '返回 TARGET_ARCHIVED')
+eq(t.readRuns(runsFile2, 5).rows[0].result, 'failed', '锁定归档会话也写执行记录')
 
 // 15.6b 官方恢复入口成功：sessionController.resolveAgent 返回 agent，当天复用不新建
 resetRuns()
