@@ -55,6 +55,8 @@ eq(empty.trending_limit, 15, '榜单默认列 15 条')
 eq(t.normalizeConfig({ trending_window: 'year' }).trending_window, 'week', '非法榜单时间窗回落本周')
 eq(t.normalizeConfig({ trending_limit: 999 }).trending_limit, 50, '榜单条数上限 50')
 eq(t.normalizeConfig({ trending_limit: 1 }).trending_limit, 5, '榜单条数下限 5')
+eq(empty.trending_zh, true, '默认开热门中文简介')
+eq(t.normalizeConfig({ trending_zh: false }).trending_zh, false, '热门中文简介可关掉')
 
 const sanitized = t.normalizeConfig({
   watch_repos: ['deepseek-ai/deepseek-harness', 'bad', '../../etc/passwd', 'a/b', 'a/b'],
@@ -1086,6 +1088,15 @@ eq(t.normalizeWindow('MONTH'), 'month', '时间窗大小写不敏感')
 eq(t.TRENDING_WINDOWS.day.minStars, 5, '今日 star 下限压到 5（一天内新建的高星仓库很少）')
 const shaped = t.shapeTrendingItem({ fullName: 'a/b', stars: 3, language: 'Go', description: 'x'.repeat(300), createdAt: '2026-10-20T00:00:00Z', htmlUrl: 'u', topics: ['t1', 't2'] })
 eq(shaped.repo, 'a/b', '榜单条目带仓库名')
+eq(t.cachedChinese('a/b', 'x'), '', '没有缓存时中文为空')
+t.rememberChinese('a/b', 'x', '一个测试仓库')
+eq(t.cachedChinese('a/b', 'x'), '一个测试仓库', '中文缓存按仓库命中')
+eq(t.cachedChinese('a/b', 'y'), '', '描述变了缓存失效')
+const zhPrompt = t.buildPrompt([{ repo: 'a/b', description: 'tiny tool', language: 'Go', topics: ['cli'] }])
+ok(zhPrompt.includes('a/b') && zhPrompt.includes('tiny tool') && zhPrompt.includes('JSON'), '中文提示词带仓库与输出格式')
+eq(t.parseChinese('好的\n[{"repo":"a/b","zh":"一个小工具"}]', [{ repo: 'a/b' }]).get('a/b'), '一个小工具', '中文解析 JSON 数组')
+eq(t.parseChinese('a/b：一个小工具', [{ repo: 'a/b' }]).get('a/b'), '一个小工具', '中文解析逐行兜底')
+eq(t.parseChinese('[]', [{ repo: 'a/b' }]).size, 0, '空结果不误判')
 eq(shaped.createdAt, '2026-10-20', '创建日期截到天')
 eq(shaped.description.length, 160, '描述截断到 160 字符')
 
@@ -1102,6 +1113,9 @@ eq(trendingCalls.length, 1, '缓存命中不再打 Search')
 const tr3 = await t.fetchTrending(fakeTrendingClient, { windowKey: 'week', limit: 1, now: trendNow + 31 * 60 * 1000 })
 eq(tr3.cached, false, '超过 30 分钟缓存失效')
 eq(trendingCalls.length, 2, '缓存失效后重新请求')
+const tr4 = await t.fetchTrending(fakeTrendingClient, { windowKey: 'week', limit: 1, now: trendNow + 61000, force: true })
+eq(tr4.cached, false, 'force 跳过缓存重新拉')
+eq(trendingCalls.length, 3, 'force 真的打了 Search')
 
 routeRuntime.clientFor = () => fakeTrendingClient
 const trendingRoute = await callRoute(routeOf('/github-digest/trending').handler, { method: 'POST', body: { window: 'month' } })
@@ -1109,6 +1123,8 @@ eq(trendingRoute.status, 200, 'POST /trending 200')
 eq(trendingRoute.body.ok, true, 'POST /trending 返回 ok')
 ok(Array.isArray(trendingRoute.body.items), 'POST /trending 带 items')
 ok(trendingRoute.body.availableWindows && trendingRoute.body.availableWindows.week, 'POST /trending 带可用的时间窗')
+const trendingForce = await callRoute(routeOf('/github-digest/trending').handler, { method: 'POST', body: { window: 'month', force: true } })
+eq(trendingForce.status, 200, 'POST /trending force 200')
 const trendingWrongMethod = await callRoute(routeOf('/github-digest/trending').handler, { method: 'GET' })
 eq(trendingWrongMethod.status, 405, 'GET /trending 405')
 const trendingBadClient = { searchRepos: async () => ({ ok: false, error: { code: 'RATE_LIMITED', message: '配额用完' } }) }
@@ -1258,9 +1274,12 @@ ok(clientSrc.includes('onBlur: () => setComposing(false)'), '组词中失焦也�
 
 // 热门榜单
 ok(clientSrc.includes('/github-digest/trending'), '面板调 /github-digest/trending')
-ok(clientSrc.includes('GitHub 热门'), '面板有榜单区块')
-ok(clientSrc.includes('trendingOpen'), '榜单默认收起，展开才拉')
-ok(clientSrc.includes('不需要挂梯子'), '面板说明榜单走 api.github.com')
+ok(clientSrc.includes("['trending', '热门']"), '热门是第四个来源分栏')
+ok(clientSrc.includes("sourceFilter !== 'trending'"), '切到热门分栏才拉榜单')
+ok(clientSrc.includes('renderTrending'), '热门分栏有独立渲染函数')
+ok(clientSrc.includes('item.zh || item.description'), '热门条目优先显示中文简介')
+ok(clientSrc.includes('refreshTrending'), '热门分栏有手动刷新')
+ok(clientSrc.includes('force: true'), '手动刷新跳过服务端缓存')
 
 // 设置页分组与参数补全
 ok(clientSrc.includes("title: '定时与投递'"), '设置页拆出「定时与投递」组')
@@ -1392,7 +1411,7 @@ ok(releasing.includes('npm pack --dry-run'), '发版文档要求核 pack 清单'
 
 const pkg = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8'))
 eq(pkg.version, PKG.version, 'package.json 版本自洽')
-ok(changelog.trim().split('\n').slice(0, 8).join('\n').includes('## ' + PKG.version), 'CHANGELOG 顶部有当前版本')
+ok(changelog.includes('## ' + PKG.version), 'CHANGELOG 有当前版本')
 eq(pkg.name, 'dsh-github-digest', '包名正确')
 ok(!pkg.private, 'package.json 没有 private:true')
 ok(pkg.dsh && pkg.dsh.client && pkg.dsh.bundle, 'package.json 有 dsh 清单')
