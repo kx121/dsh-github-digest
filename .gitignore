@@ -1,0 +1,10 @@
+node_modules/
+*.tgz
+*.zip
+*.bak
+*.bak-*
+out/
+.github-duty/
+apply-probe.json
+.DS_Store
+Thumbs.db

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "GitHub Duty",
+    "description": "Wakes a session on a schedule to scan GitHub, pick out repos and releases worth reading, write a daily report and keep a seen-list. Read-only."
+  }
+}
