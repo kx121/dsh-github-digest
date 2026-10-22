@@ -47,6 +47,12 @@ eq(empty.cold_pick_max_stars, 500, '冷门线默认 500 star')
 eq(empty.discover_created_within_days, 30, '发现默认看 30 天内创建')
 eq(empty.token, '', '默认无 token')
 eq(empty.hostSessionId, undefined, '配置里不该有临时字段')
+eq(empty.languages, undefined, 'languages 是死参数，已从配置里删掉')
+eq(empty.trending_window, 'week', '榜单默认时间窗是本周')
+eq(empty.trending_limit, 15, '榜单默认列 15 条')
+eq(t.normalizeConfig({ trending_window: 'year' }).trending_window, 'week', '非法榜单时间窗回落本周')
+eq(t.normalizeConfig({ trending_limit: 999 }).trending_limit, 50, '榜单条数上限 50')
+eq(t.normalizeConfig({ trending_limit: 1 }).trending_limit, 5, '榜单条数下限 5')
 
 const sanitized = t.normalizeConfig({
   watch_repos: ['deepseek-ai/deepseek-harness', 'bad', '../../etc/passwd', 'a/b', 'a/b'],
@@ -516,12 +522,12 @@ function createMockContext(options = {}) {
 const boot = createMockContext()
 host.apply(boot.ctx, {})
 eq([...boot.state.toolMap.keys()].sort(), ['gh_duty_brief', 'gh_duty_discover', 'gh_duty_info', 'gh_duty_run_add', 'gh_duty_seen_add', 'gh_duty_seen_query', 'gh_duty_watch'], '7 个工具都注册上了')
-eq(boot.state.routes.length, 4, '4 条 HTTP 路由都注册了')
+eq(boot.state.routes.length, 7, '7 条 HTTP 路由都注册了（config / watch / status / panel / search / trending / run-now）')
 eq(boot.state.intervals.length, 1, '定时器只启动一次')
 eq(boot.state.intervals[0].seconds, 60000, '定时器 60 秒一跳（宿主 interval 是毫秒制）')
 const probeAfterApply = JSON.parse(fs.readFileSync(path.join(PLUGIN_DATA, 'apply-probe.json'), 'utf8'))
 eq(probeAfterApply.phase, 'apply-ok', 'apply 探针记录 apply-ok')
-eq(probeAfterApply.version, '0.1.0', '探针版本来自 package.json')
+eq(probeAfterApply.version, '0.1.1', '探针版本来自 package.json')
 
 // ── 15. runtime + 调度层 fire ────────────────────────────────────────
 const integ = createMockContext()
@@ -967,7 +973,7 @@ eq(JSON.parse(fs.readFileSync(toolConfig, 'utf8')).token, '', 'token 清除真�
 
 const statusRoute = await callRoute(routeOf('/github-duty/status').handler)
 eq(statusRoute.status, 200, 'GET /status 200')
-eq(statusRoute.body.version, '0.1.0', 'GET /status 返回版本号')
+eq(statusRoute.body.version, '0.1.1', 'GET /status 返回版本号')
 const panelRoute = await callRoute(routeOf('/github-duty/panel').handler)
 eq(panelRoute.status, 200, 'GET /panel 200')
 ok(Array.isArray(panelRoute.body.history), 'GET /panel 带 history')
@@ -980,6 +986,109 @@ const runNowWrongMethod = await callRoute(routeOf('/github-duty/run-now').handle
 eq(runNowWrongMethod.status, 405, 'GET /run-now 405')
 const configWrongMethod = await callRoute(routeOf('/github-duty/config').handler, { method: 'PUT' })
 eq(configWrongMethod.status, 405, 'PUT /config 405')
+
+// 关注仓库的增删走独立路由：只动 watch_repos，不覆盖其它字段。
+const watchGet = await callRoute(routeOf('/github-duty/watch').handler)
+eq(watchGet.status, 200, 'GET /watch 200')
+ok(Array.isArray(watchGet.body.repos), 'GET /watch 带关注列表')
+eq(watchGet.body.limit, 60, 'GET /watch 带上限')
+const watchAdd = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'Ollama/Ollama', op: 'add' } })
+eq(watchAdd.status, 200, 'POST /watch add 200')
+eq(watchAdd.body.changed, true, 'POST /watch add 真的改了')
+eq(watchAdd.body.repos, ['Ollama/Ollama'], 'POST /watch 返回新列表')
+const watchDup = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'ollama/OLLAMA', op: 'add' } })
+eq(watchDup.body.changed, false, '重复关注幂等（大小写不敏感）')
+const watchSecond = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'deepseek-ai/deepseek-harness', op: 'add' } })
+eq(watchSecond.body.count, 2, '能关注第二个仓库')
+const watchOtherConfig = JSON.parse(fs.readFileSync(path.join(PLUGIN_DATA, 'config.json'), 'utf8'))
+eq(watchOtherConfig.max_items_per_run, 5, 'POST /watch 不动其它配置项')
+const watchBadRef = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: '../etc/passwd', op: 'add' } })
+eq(watchBadRef.status, 400, '非法仓库名返回 400')
+eq(watchBadRef.body.code, 'BAD_REPO_REF', '非法仓库名带 BAD_REPO_REF')
+const watchRemove = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'ollama/ollama', op: 'remove' } })
+eq(watchRemove.body.changed, true, '取消关注生效')
+eq(watchRemove.body.repos, ['deepseek-ai/deepseek-harness'], '取消关注后列表只剩一个')
+const watchRemoveAgain = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'ollama/ollama', op: 'remove' } })
+eq(watchRemoveAgain.body.changed, false, '取消不存在的关注幂等')
+// 满额要明确报错，不能静默截断
+t.saveStoredConfig({ watch_repos: Array.from({ length: 60 }, (_, i) => 'owner' + i + '/repo' + i) })
+const watchFull = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'one/more', op: 'add' } })
+eq(watchFull.status, 409, '关注满了返回 409')
+eq(watchFull.body.code, 'WATCH_FULL', '关注满了带 WATCH_FULL')
+const watchWrongMethod = await callRoute(routeOf('/github-duty/watch').handler, { method: 'PUT' })
+eq(watchWrongMethod.status, 405, 'PUT /watch 405')
+
+// 历史搜索：面板只有最近 20 轮，更早的靠服务端搜 history.jsonl
+t.appendHistory(path.join(PLUGIN_DATA, 'history.jsonl'), {
+  at: '2026-10-22 13:00:00',
+  items: [{ repo: 'search/probe', verdict: 'worth', stars: 12, what: '搜索测试项目', whatChanged: 'v1 首次出现', impact: '无', action: '看看' }],
+})
+const searchEmpty = await callRoute(routeOf('/github-duty/search').handler, { method: 'POST', body: { q: '   ' } })
+eq(searchEmpty.status, 200, 'POST /search 200')
+eq(searchEmpty.body.count, 0, '空搜索词返回 0 条')
+const searchHit = await callRoute(routeOf('/github-duty/search').handler, { method: 'POST', body: { q: '搜索测试' } })
+eq(searchHit.body.count >= 1, true, 'POST /search 能命中历史里的项目')
+eq(searchHit.body.hits[0].repo, 'search/probe', '搜索结果带仓库名')
+eq(searchHit.body.hits[0].what, '搜索测试项目', '搜索结果带「是什么」')
+const searchWrongMethod = await callRoute(routeOf('/github-duty/search').handler, { method: 'GET' })
+eq(searchWrongMethod.status, 405, 'GET /search 405')
+
+// 热门榜单：用 Search API 自己算，不抓 github.com/trending
+const trendingCalls = []
+const fakeTrendingClient = {
+  searchRepos: async ({ q, sort, perPage }) => {
+    trendingCalls.push({ q, sort, perPage })
+    return {
+      ok: true,
+      totalCount: 42,
+      repos: [
+        { fullName: 'acme/new-thing', description: '一个刚建的高星项目', stars: 5000, language: 'Go', createdAt: '2026-10-20T00:00:00Z', pushedAt: '2026-10-21T00:00:00Z', htmlUrl: 'https://github.com/acme/new-thing', topics: ['dsh'] },
+        { fullName: 'acme/second', description: '', stars: 1200, language: 'Rust', createdAt: '2026-10-19T00:00:00Z', pushedAt: '2026-10-20T00:00:00Z', htmlUrl: 'https://github.com/acme/second', topics: [] },
+      ],
+    }
+  },
+}
+const trendNow = Date.parse('2026-10-22T00:00:00Z')
+eq(t.buildTrendingQuery('week', '', trendNow), 'created:>2026-10-15 stars:>100', '本周查询串（7 天窗口 + 100 star 下限）')
+eq(t.buildTrendingQuery('day', '', trendNow), 'created:>2026-10-21 stars:>5', '今日查询串')
+ok(t.buildTrendingQuery('month', 'Go', trendNow).includes('language:Go'), '语言过滤进查询串')
+ok(!t.buildTrendingQuery('week', 'all', trendNow).includes('language:'), 'language=all 不加过滤')
+eq(t.normalizeWindow('nope'), 'week', '非法时间窗回落到本周')
+eq(t.normalizeWindow('MONTH'), 'month', '时间窗大小写不敏感')
+eq(t.TRENDING_WINDOWS.day.minStars, 5, '今日 star 下限压到 5（一天内新建的高星仓库很少）')
+const shaped = t.shapeTrendingItem({ fullName: 'a/b', stars: 3, language: 'Go', description: 'x'.repeat(300), createdAt: '2026-10-20T00:00:00Z', htmlUrl: 'u', topics: ['t1', 't2'] })
+eq(shaped.repo, 'a/b', '榜单条目带仓库名')
+eq(shaped.createdAt, '2026-10-20', '创建日期截到天')
+eq(shaped.description.length, 160, '描述截断到 160 字符')
+
+t.clearTrendingCache()
+const tr1 = await t.fetchTrending(fakeTrendingClient, { windowKey: 'week', limit: 1, now: trendNow })
+eq(tr1.ok, true, 'fetchTrending 成功')
+eq(tr1.cached, false, '第一次不命中缓存')
+eq(tr1.items.length, 1, 'limit 生效')
+eq(trendingCalls.length, 1, '第一次真的打了 Search')
+eq(trendingCalls[0].sort, 'stars', '按 star 倒序')
+const tr2 = await t.fetchTrending(fakeTrendingClient, { windowKey: 'week', limit: 1, now: trendNow + 60000 })
+eq(tr2.cached, true, '第二次命中缓存')
+eq(trendingCalls.length, 1, '缓存命中不再打 Search')
+const tr3 = await t.fetchTrending(fakeTrendingClient, { windowKey: 'week', limit: 1, now: trendNow + 31 * 60 * 1000 })
+eq(tr3.cached, false, '超过 30 分钟缓存失效')
+eq(trendingCalls.length, 2, '缓存失效后重新请求')
+
+routeRuntime.clientFor = () => fakeTrendingClient
+const trendingRoute = await callRoute(routeOf('/github-duty/trending').handler, { method: 'POST', body: { window: 'month' } })
+eq(trendingRoute.status, 200, 'POST /trending 200')
+eq(trendingRoute.body.ok, true, 'POST /trending 返回 ok')
+ok(Array.isArray(trendingRoute.body.items), 'POST /trending 带 items')
+ok(trendingRoute.body.availableWindows && trendingRoute.body.availableWindows.week, 'POST /trending 带可用的时间窗')
+const trendingWrongMethod = await callRoute(routeOf('/github-duty/trending').handler, { method: 'GET' })
+eq(trendingWrongMethod.status, 405, 'GET /trending 405')
+const trendingBadClient = { searchRepos: async () => ({ ok: false, error: { code: 'RATE_LIMITED', message: '配额用完' } }) }
+routeRuntime.clientFor = () => trendingBadClient
+t.clearTrendingCache()
+const trendingFail = await callRoute(routeOf('/github-duty/trending').handler, { method: 'POST', body: { window: 'day' } })
+eq(trendingFail.status, 502, '拉取失败返回 502')
+eq(trendingFail.body.error.code, 'RATE_LIMITED', '失败时透传 GitHub 错误码')
 eq(host.__test__.requestRejection(routeBoot.ctx, { headers: { host: '127.0.0.1:57356', origin: 'https://evil.example.com' } }), 403, '跨站 Origin 被拒')
 eq(host.__test__.requestRejection(routeBoot.ctx, { headers: { host: '127.0.0.1:57356' } }), null, '本机 Host 放行')
 eq(host.__test__.requestRejection(routeBoot.ctx, { headers: { host: '10.0.0.5' } }), 403, '非回环 Host 拒绝')
@@ -1009,8 +1118,48 @@ ok(Math.abs(panelPayload.cumulative.costCny - 0.03) < 1e-9, '累计费用相加'
 ok(panelPayload.reports.includes('2026-10-22.md'), '面板包含新日报目录')
 ok(panelPayload.reports.includes('2026-10-21.md'), '面板兼容旧日报目录（换目录后历史不消失）')
 ok(panelPayload.cost && panelPayload.cost.available === true, '面板带 cost-meter 数据')
+
+// 关注分栏：面板要知道「关注了哪些」以及每个仓库上次检查的结果
+t.saveStoredConfig({ watch_repos: ['Ollama/Ollama', 'deepseek-ai/deepseek-harness'] })
+fs.writeFileSync(panelPaths.watchState, JSON.stringify({
+  'Ollama/Ollama': { pushedAt: '2026-10-20T00:00:00Z', checkedAt: '2026-10-22 12:30:00', lastDelta: 'unchanged' },
+  'deepseek-ai/deepseek-harness': { pushedAt: '2026-10-22T01:00:00Z', checkedAt: '2026-10-22 12:30:00', lastDelta: 'pushed' },
+  'unwatched/repo': { pushedAt: '2026-10-22T01:00:00Z', checkedAt: '2026-10-22 12:30:00', lastDelta: 'pushed' },
+}), 'utf8')
+const panelWithWatch = host.__test__.buildPanel(panelRuntime)
+eq(panelWithWatch.watchRepos, ['Ollama/Ollama', 'deepseek-ai/deepseek-harness'], '面板返回关注列表')
+eq(panelWithWatch.watchCount, 2, '面板关注数量与列表一致')
+eq(panelWithWatch.watchState['Ollama/Ollama'].lastDelta, 'unchanged', '面板带「未发现更新」状态')
+eq(panelWithWatch.watchState['deepseek-ai/deepseek-harness'].lastDelta, 'pushed', '面板带「有新推送」状态')
+eq(panelWithWatch.watchState['unwatched/repo'], undefined, '不在关注列表的旧记录不返回')
+eq(panelWithWatch.watchState['Ollama/Ollama'].checkedAt, '2026-10-22 12:30:00', '面板带上次检查时间')
+
+// 历史搜索的匹配范围与语义
+fs.writeFileSync(panelPaths.history, [
+  JSON.stringify({ at: '2026-10-20 12:00:00', items: [{ repo: 'acme/widget', verdict: 'worth', what: 'agent 记忆层', whatChanged: 'v1.2 新增检索', impact: '配置要改', action: '升级到新版本' }] }),
+  JSON.stringify({ at: '2026-10-21 12:00:00', items: [{ repo: 'other/thing', verdict: 'skip', what: '纯文档站', whatChanged: '只改了 CI', impact: '无', action: '不用管' }] }),
+].join('\n') + '\n', 'utf8')
+eq(t.searchHistory(panelPaths, '记忆').length, 1, '搜索范围包含「是什么」')
+eq(t.searchHistory(panelPaths, '记忆')[0].repo, 'acme/widget', '命中项带仓库名')
+eq(t.searchHistory(panelPaths, '新增检索').length, 1, '搜索范围包含「变化」')
+eq(t.searchHistory(panelPaths, '配置要改').length, 1, '搜索范围包含「影响」')
+eq(t.searchHistory(panelPaths, '升级到新版本').length, 1, '搜索范围包含「建议」')
+eq(t.searchHistory(panelPaths, 'ACME').length, 1, '搜索大小写不敏感')
+eq(t.searchHistory(panelPaths, 'acme 记忆').length, 1, '多关键词按 AND 匹配')
+eq(t.searchHistory(panelPaths, 'acme 不存在的词').length, 0, '少一个关键词就不命中')
+eq(t.searchHistory(panelPaths, '   ').length, 0, '全空白搜索词返回空')
+eq(t.searchHistory(panelPaths, '文档', 1).length, 1, 'limit 生效')
+
+// 查询串里的标点当分隔符（输入法打出的全角标点不该让搜索落空）
+eq(t.splitQuery('rea 逆向'), ['rea', '逆向'], '空格切词')
+eq(t.splitQuery('rea，逆向'), ['rea', '逆向'], '全角逗号当分隔符')
+eq(t.splitQuery('rea、逆向；x'), ['rea', '逆向', 'x'], '顿号分号都当分隔符')
+eq(t.splitQuery('dsh-plugin'), ['dsh-plugin'], '连字符不切（仓库名的一部分）')
+eq(t.splitQuery('v1.3.3'), ['v1.3.3'], '点号不切（版本号的一部分）')
+eq(t.splitQuery('  ，。  '), [], '全是标点切出空词')
+eq(t.searchHistory(panelPaths, 'acme，记忆').length, 1, '带标点的查询能搜到')
 const statusPayload = await host.__test__.buildStatus(panelRuntime)
-eq(statusPayload.version, '0.1.0', '状态快照带版本号')
+eq(statusPayload.version, '0.1.1', '状态快照带版本号')
 ok(statusPayload.paths.outDir.startsWith(WS), '状态快照的日报目录在工作区')
 
 // ── 19. 客户端静态契约 ──────────────────────────────────────────────
@@ -1026,6 +1175,69 @@ ok(clientSrc.includes("name: 'main', key: 'github-duty'"), '注册侧边栏主�
 ok(clientSrc.includes('function SettingsPage()'), '设置页组件存在')
 ok(clientSrc.includes('function DutyPanel()'), '值班面板组件存在')
 ok(clientSrc.includes('const SidebarIcon = () =>'), '侧边栏图标组件存在')
+
+// 关注 / 来源分栏契约
+ok(clientSrc.includes('/github-duty/watch'), '面板调 /github-duty/watch 关注路由')
+ok(clientSrc.includes('SOURCE_FILTERS'), '面板有来源分栏（全部 / 发现 / 关注）')
+ok(clientSrc.includes('WatchListCard'), '面板有关注列表卡片')
+ok(clientSrc.includes('未发现更新'), '关注视图显示「未发现更新」')
+ok(clientSrc.includes('toggleWatch'), '面板有关注切换逻辑')
+ok(clientSrc.includes('itemSource'), '面板能判定条目来源（老数据反推）')
+ok(clientSrc.includes('gd-item-watch'), '条目右侧有关注按钮样式')
+
+// 历史搜索契约
+ok(clientSrc.includes('/github-duty/search'), '面板调 /github-duty/search 搜索历史')
+ok(clientSrc.includes('gd-search'), '面板有搜索输入框样式')
+ok(clientSrc.includes('searchQuery'), '搜索有防抖后的词状态')
+ok(clientSrc.includes('filteredHits'), '搜索结果同样吃来源 / 推荐度 / 时间筛选')
+
+// 字号滑块契约
+ok(clientSrc.includes("type: 'range'"), '面板有字号滑块')
+ok(clientSrc.includes('FONT_SCALE_KEY'), '字号偏好存 localStorage')
+ok(clientSrc.includes("'--gd-fs'"), '字号通过 CSS 变量下发')
+ok(clientSrc.includes('calc(12px * var(--gd-fs,1))'), '记录正文字号跟随滑块')
+ok(clientSrc.includes('calc(11px * var(--gd-fs,1))'), '徽标与序号字号跟随滑块')
+ok(clientSrc.includes('var(--gd-fs,1)'), '没有变量的区域回落原始字号')
+
+// 四栏标签配色
+ok(clientSrc.includes("'data-k': 'what'"), '「是什么」带语义标记')
+ok(clientSrc.includes("'data-k': 'changed'"), '「变化」带语义标记')
+ok(clientSrc.includes("'data-k': 'impact'"), '「影响」带语义标记')
+ok(clientSrc.includes("'data-k': 'action'"), '「建议」带语义标记')
+ok(clientSrc.includes('.gd-item-line[data-k] b{display:inline-block'), '四栏标签套了气泡')
+ok(clientSrc.includes('.gd-item-line[data-k="what"] b{color:#82a0bd'), '「是什么」标签有自己的低饱和色')
+ok(clientSrc.includes('.gd-item-line[data-k="action"] b{color:#9a8ec6'), '「建议」标签有自己的低饱和色')
+ok(clientSrc.includes('rgba(130,160,189,.15)'), '气泡底是同色系低透明度')
+ok(!clientSrc.includes("'是什么：'"), '气泡标签不再带冒号')
+
+// 搜索高亮
+ok(clientSrc.includes('function highlight(text, terms)'), '有搜索命中高亮函数')
+ok(clientSrc.includes("className: 'gd-hl'"), '命中词包成 mark')
+ok(clientSrc.includes('.gd-hl{background:#ffd666;color:#2b2410'), '命中词是亮黄实心 + 深色字（覆盖 mark 默认样式）')
+ok(clientSrc.includes('highlight(hit.what, searchTerms)'), '四栏内容都走高亮')
+ok(clientSrc.includes('highlight(hitRepo, searchTerms)'), '项目名也高亮')
+ok(clientSrc.includes('NEED_ESCAPE'), '搜索词逐字符转义（不写转义用的正则）')
+ok(!clientSrc.includes('innerHTML'), '高亮不拼 HTML 串，避免注入')
+
+// 输入法组词：打拼音时不能拿半截拼音去搜
+ok(clientSrc.includes('onCompositionStart'), '组词开始会打标记')
+ok(clientSrc.includes('onCompositionEnd'), '组词结束才把最终词交给搜索')
+ok(clientSrc.includes('if (composing) return undefined'), '组词期间跳过 debounce')
+ok(clientSrc.includes('onBlur: () => setComposing(false)'), '组词中失焦也能重置状态')
+
+// 热门榜单
+ok(clientSrc.includes('/github-duty/trending'), '面板调 /github-duty/trending')
+ok(clientSrc.includes('GitHub 热门'), '面板有榜单区块')
+ok(clientSrc.includes('trendingOpen'), '榜单默认收起，展开才拉')
+ok(clientSrc.includes('不需要挂梯子'), '面板说明榜单走 api.github.com')
+
+// 设置页分组与参数补全
+ok(clientSrc.includes("title: '定时与投递'"), '设置页拆出「定时与投递」组')
+ok(clientSrc.includes("title: '每轮规模'"), '设置页拆出「每轮规模」组')
+ok(clientSrc.includes("title: '运行环境'"), '设置页拆出「运行环境」组')
+ok(clientSrc.includes("title: '读什么'"), '设置页拆出「读什么」组')
+ok(clientSrc.includes("patch('release_body_chars'"), 'release 正文截断有设置入口')
+ok(!clientSrc.includes("patch('languages'"), '设置页不再有 languages（死参数）')
 
 // token 安全：GET 不回显，前端只用 tokenInput，保存时留空 = 不修改
 ok(clientSrc.includes('tokenInput'), 'token 用独立输入框')
@@ -1143,7 +1355,7 @@ const releasing = fs.readFileSync(path.join(HERE, '..', 'RELEASING.md'), 'utf8')
 ok(releasing.includes('npm pack --dry-run'), '发版文档要求核 pack 清单')
 
 const pkg = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8'))
-eq(pkg.version, '0.1.0', 'package.json 版本是 0.1.0')
+eq(pkg.version, '0.1.1', 'package.json 版本是 0.1.1')
 eq(pkg.name, 'github-duty', '包名正确')
 ok(!pkg.private, 'package.json 没有 private:true')
 ok(pkg.dsh && pkg.dsh.client && pkg.dsh.bundle, 'package.json 有 dsh 清单')

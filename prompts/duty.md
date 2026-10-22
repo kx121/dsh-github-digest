@@ -178,6 +178,7 @@ API 额度有限（未认证 60 次/小时，有 token 5000 次/小时）。toke
     "stars": 1234,
     "verdict": "worth",
     "confidence": "high",
+    "source": "discover",
     "what": "agent 记忆层：把对话写进可检索的长期存储（首次收录必写）",
     "whatChanged": "v2.1.0 新增 xxx，删掉 yyy",
     "impact": "你的项目要跟着改配置",
@@ -188,6 +189,7 @@ API 额度有限（未认证 60 次/小时，有 token 5000 次/小时）。toke
     "stars": 88,
     "verdict": "skip",
     "confidence": "high",
+    "source": "watch",
     "whatChanged": "只改了 CI 配置",
     "impact": "无",
     "action": "不用管"
@@ -196,6 +198,7 @@ API 额度有限（未认证 60 次/小时，有 token 5000 次/小时）。toke
 ```
 
 - `verdict` 只能是 `worth` / `watch` / `skip`；`confidence` 只能是 `high` / `medium` / `low`
+- `source`：这条是从关注列表看的（`watch`）还是按主题发现的（`discover`）。面板靠它分「发现 / 关注」两栏，不写就只能按当前关注列表猜（关注后又取消的历史条目会归错）
 - **数组顺序 = 报告里的序号**，从 1 开始，两边必须一一对应（面板按这个顺序显示 1、2、3…）
 - `what`：一句话说清这项目是干嘛的。**首次收录的必写**，关注列表里的老项目可以省
 - 其余几项都写具体内容，`whatChanged` 至少写清版本号或提交摘要

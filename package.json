@@ -1,6 +1,6 @@
 {
   "name": "github-duty",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "description": "到点叫醒 DSH 会话，翻你关注的 GitHub 仓库和主题，挑出值得跟的变化，写日报、记判重表。只读。",
   "repository": {
