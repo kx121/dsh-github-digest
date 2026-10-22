@@ -376,7 +376,7 @@ eq(index[1].id, 'session-aaa11111-0000', 'id 统一带 session- 前缀')
 eq(t.readSessionIndex(path.join(TMP, 'no-such-dir')), [], '目录不存在时返回空数组（不抛）')
 
 // ── 11. 路径 / 工作区 ─────────────────────────────────────────────────
-eq(t.normalizeWorkspace('C:\\Users\\Administrator\\Documents\\deepseek-harness\\default-workspace'), 'C:\\Users\\Administrator\\Documents\\deepseek-harness\\default-workspace', '绝对路径工作区被接受')
+eq(t.normalizeWorkspace('C:\\Users\\me\\Documents\\deepseek-harness\\default-workspace'), 'C:\\Users\\me\\Documents\\deepseek-harness\\default-workspace', '绝对路径工作区被接受')
 eq(t.normalizeWorkspace('relative/path'), '', '相对路径被拒')
 eq(t.normalizeWorkspace('C:\\a\\..\\b'), '', '含 .. 的路径被拒')
 eq(t.normalizeWorkspace('\\\\server\\share'), '', 'UNC 被拒')
