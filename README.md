@@ -40,7 +40,7 @@
 dsh plugin --profile desktop add github:kx121/dsh-github-digest
 
 # 或直接装 Release 里的 tarball
-dsh plugin --profile desktop add https://github.com/kx121/dsh-github-digest/releases/download/v0.2.0/dsh-github-digest-0.2.0.tgz
+dsh plugin --profile desktop add https://github.com/kx121/dsh-github-digest/releases/download/v0.2.1/dsh-github-digest-0.2.1.tgz
 ```
 
 装完重启 DSH，侧边栏出现「GitHub 日报」，设置页出现「GitHub 日报设置」。

@@ -12,7 +12,7 @@ npm 上没有这个包（`npm view` 404 是正常的）。下面第 5、8 步的
 
 ## 1. 改版本
 
-- `package.json` 的 `version`（与 git tag 一致：`v0.2.0` ↔ `0.2.0`）
+- `package.json` 的 `version`（与 git tag 一致：`v0.2.1` ↔ `0.2.1`）
 - `CHANGELOG.md` 加一段，只写使用者能感知的变化
 
 ## 2. 跑测试
@@ -42,9 +42,9 @@ npm pack --dry-run
 
 ```bash
 git add -A
-git commit -m "release: v0.2.0"
-git tag -a v0.2.0 -m "dsh-github-digest 0.2.0"
-git push origin main && git push origin v0.2.0
+git commit -m "release: v0.2.1"
+git tag -a v0.2.1 -m "dsh-github-digest 0.2.1"
+git push origin main && git push origin v0.2.1
 ```
 
 ## 5. 发布
@@ -59,7 +59,7 @@ npm publish
 
 ```bash
 npm view dsh-github-digest version --registry=https://registry.npmjs.org/
-npm pack dsh-github-digest@0.2.0 --dry-run
+npm pack dsh-github-digest@0.2.1 --dry-run
 ```
 
 再打开包页面看：README 渲染、icon、repository 链接、版本号与 tag 一致。
