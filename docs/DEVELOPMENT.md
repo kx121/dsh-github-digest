@@ -33,7 +33,7 @@ lib/
   sessions.js         会话列表 / 建会话 / 改名 / 唤醒 / prompt 兜底
   wake-message.js     唤醒消息拼装 + 准则读取
   panel-data.js       /status、/config、/panel 的数据组装
-  routes.js           4 条 HTTP 路由 + 来源校验 + 请求体读取
+  routes.js           7 条 HTTP 路由 + 来源校验 + 请求体读取
   runner.js           fire() + startTimer()
   tools/              7 个工具（schema / info / brief / watch / discover / seen / runs）
   client.js           Web 客户端（设置页 + 侧边栏面板），单文件
@@ -78,6 +78,11 @@ prompts/digest.md       判断准则（随包发布，用户可改）
 factory 的 `require` 只能解析平台冻结模块（react 等 11 项）与已注册 bundle。
 客户端 inject 只能写真实服务（本插件只有 `slots`）；写 `styles` / `React` 会让 web boot 卡死。
 factory 体里任何 throw 都会让 web boot 判定 entry failed，所以整段包 try/catch。
+- **模块 id 必须等于 `package.json` 的 `name`**（`dsh-github-digest`）。宿主用包名做启动行 id，
+  `__ModuleLoader__.load({ id })` 对不上会被判「脚本执行了但没注册」，加载器回落到单文件 URL
+  再执行一遍，第二次注册抛 `duplicate factory registration`，web boot 判 entry 未激活 ——
+  用户看到「应用无法启动」。改名时四处一起改：`package.json` name、`lib/index.js` 的 `name`、
+  `lib/client.js` 的 `load({ id })`、`cordis.patch.yml` 的 `insert.id`。
 
 ### 6. 热重载
 
@@ -86,6 +91,9 @@ factory 体里任何 throw 都会让 web boot 判定 entry failed，所以整段
   改 `lib/*.js` 后要触发一次 profile 重组（改 profile 的 `package.json` / `cordis.patch.yml`、或用插件页禁用/启用），
   重组时按 inode/mtime/size 比对并替换 entry。
 - `apply` 里任何异常都不许外抛：抛了 = entry failed，整个插件起不来。失败写 `apply-probe.json`。
+- 改完 `lib/client.js`（尤其模块 id / 入口结构）后必须**重启宿主**确认 web boot 干净：
+  `apply-probe.json` 只反映 host 半，「apply-ok + 路由 200」不代表客户端 bundle 加载成功。
+  崩溃日志在 `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`，搜 `did not activate`。
 
 ## 数据契约
 
@@ -99,7 +107,7 @@ factory 体里任何 throw 都会让 web boot 判定 entry failed，所以整段
 | pending-run.json | ~/.dsh/github-digest | host | 本轮临时数据；fire 时写成本基线，run_add 清掉 |
 | schedule-state.json | ~/.dsh/github-digest | host | lastRunDate / lastFireAt / lastFireReason |
 | apply-probe.json | ~/.dsh/github-digest | host | 加载探针，排障用 |
-| YYYY-MM-DD.md | <工作区>/.github-digest | **会话** | 日报；必须落在会话工作区内，否则每轮弹权限审批 |
+| YYYY-MM-DD-N.md | <工作区>/.github-digest | **会话** | 日报（N 是当天第几轮）；必须落在会话工作区内，否则每轮弹权限审批 |
 
 旧版日报在 `~/.dsh/github-digest/out/`，面板仍会兼容读取，但不再写入。
 
@@ -111,7 +119,7 @@ npm test
 
 全离线：`DSH_HOME` 指向临时目录，GitHub 请求全部用假 fetch，不碰真实数据。
 覆盖：配置归一、调度判定、Markdown 表、history、pending、GitHub 客户端、凭据探测、发现纯函数、成本、
-会话索引、路径、唤醒消息、工具 execute、4 条路由、fire 全流程（含恢复/prompt 兜底）、面板 payload、
+会话索引、路径、唤醒消息、工具 execute、7 条路由、fire 全流程（含恢复/prompt 兜底）、面板 payload、
 客户端静态契约、文档与包一致性。
 
 ## 发版

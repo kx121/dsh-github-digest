@@ -22,6 +22,15 @@ DSH 生态里已经有四个 `*-duty` 插件（`dsh-telegram-duty`、`dsh-cc98-d
 
 - 设置页标题「GitHub 值班表」改为「GitHub 日报设置」，侧边栏「GitHub 值班」改为「GitHub 日报」。
 
+### 修正
+
+- **客户端模块注册 id 改成包名 `dsh-github-digest`。** 改名时漏了这一处：宿主按包名找 factory，
+  找不到就把 bundle 再执行一遍，触发 `duplicate factory registration`，web boot 判定 entry 未激活，
+  用户看到「应用无法启动」。本版 tarball 已替换，装过旧 tarball 的重新装一次。
+- 冒烟测试补断言：客户端模块 id 必须等于包名；CHANGELOG 顶部版本必须等于 package.json；
+  README / 设置页标题 / 日报文件名 / 安装命令互相一致。
+- 代码清理：删掉未使用的 import 与导出、config 路由里的死变量、`updatePending` 改成原子写。
+
 ## 0.1.1 — 2026-10-22
 
 ### 面板

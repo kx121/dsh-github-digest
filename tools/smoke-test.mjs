@@ -12,6 +12,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
+// 版本号只认 package.json，测试里不再手抄：改版本时只改一个地方。
+const PKG = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8'))
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'github-digest-test-'))
 process.env.DSH_HOME = TMP
 const WS = path.join(TMP, 'workspace')
@@ -527,7 +529,7 @@ eq(boot.state.intervals.length, 1, '定时器只启动一次')
 eq(boot.state.intervals[0].seconds, 60000, '定时器 60 秒一跳（宿主 interval 是毫秒制）')
 const probeAfterApply = JSON.parse(fs.readFileSync(path.join(PLUGIN_DATA, 'apply-probe.json'), 'utf8'))
 eq(probeAfterApply.phase, 'apply-ok', 'apply 探针记录 apply-ok')
-eq(probeAfterApply.version, '0.2.0', '探针版本来自 package.json')
+eq(probeAfterApply.version, PKG.version, '探针版本来自 package.json')
 
 // ── 15. runtime + 调度层 fire ────────────────────────────────────────
 const integ = createMockContext()
@@ -973,7 +975,7 @@ eq(JSON.parse(fs.readFileSync(toolConfig, 'utf8')).token, '', 'token 清除真�
 
 const statusRoute = await callRoute(routeOf('/github-digest/status').handler)
 eq(statusRoute.status, 200, 'GET /status 200')
-eq(statusRoute.body.version, '0.2.0', 'GET /status 返回版本号')
+eq(statusRoute.body.version, PKG.version, 'GET /status 返回版本号')
 const panelRoute = await callRoute(routeOf('/github-digest/panel').handler)
 eq(panelRoute.status, 200, 'GET /panel 200')
 ok(Array.isArray(panelRoute.body.history), 'GET /panel 带 history')
@@ -1159,7 +1161,7 @@ eq(t.splitQuery('v1.3.3'), ['v1.3.3'], '点号不切（版本号的一部分）'
 eq(t.splitQuery('  ，。  '), [], '全是标点切出空词')
 eq(t.searchHistory(panelPaths, 'acme，记忆').length, 1, '带标点的查询能搜到')
 const statusPayload = await host.__test__.buildStatus(panelRuntime)
-eq(statusPayload.version, '0.2.0', '状态快照带版本号')
+eq(statusPayload.version, PKG.version, '状态快照带版本号')
 ok(statusPayload.paths.outDir.startsWith(WS), '状态快照的日报目录在工作区')
 
 // ── 19. 客户端静态契约 ──────────────────────────────────────────────
@@ -1168,7 +1170,10 @@ ok(statusPayload.paths.outDir.startsWith(WS), '状态快照的日报目录在工
 const clientSrc = fs.readFileSync(path.join(HERE, '..', 'lib', 'client.js'), 'utf8')
 ok(clientSrc.includes('window.__ModuleLoader__.load({'), '客户端按 ModuleLoader 协议注册')
 ok(!/^import\s/m.test(clientSrc), '客户端没有顶层 import（平台只认单文件 classic script）')
-ok(clientSrc.includes("id: 'github-digest'"), '客户端模块 id 正确')
+// 模块 id 必须等于包名：宿主用 package.json 的 name 做启动行 id，对不上会把 bundle
+// 执行两遍，抛 duplicate factory registration，web boot 判 entry 未激活（应用起不来）。
+const clientModuleId = (clientSrc.match(/__ModuleLoader__\.load\(\{[\s\S]*?id:\s*'([^']+)'/) || [])[1]
+eq(clientModuleId, PKG.name, '客户端模块 id 等于包名（防「应用无法启动」）')
 ok(clientSrc.includes('settings.section'), '注册设置页槽位')
 ok(clientSrc.includes('sidebar.panellist'), '注册侧边栏入口')
 ok(clientSrc.includes("name: 'main', key: 'github-digest'"), '注册侧边栏主面板')
@@ -1341,6 +1346,11 @@ ok(readmeDoc.includes('12:30'), 'README 的默认定时与配置一致')
 ok(readmeDoc.includes('.github-digest'), 'README 写明日报目录')
 ok(readmeDoc.includes('304'), 'README 写明 304 仍扣配额')
 ok(!readmeDoc.includes('一天跑一轮售价'), 'README 没有乱码文案')
+// 改名后的一致性：设置页标题、日报文件名、安装方式
+ok(readmeDoc.includes('GitHub 日报设置'), 'README 用当前的设置页标题')
+ok(clientSrc.includes("label: 'GitHub 日报设置'"), '客户端设置页标题与 README 一致')
+ok(readmeDoc.includes('YYYY-MM-DD-N.md'), 'README 写明日报文件名带当天轮次')
+ok(!readmeDoc.includes('add dsh-github-digest'), 'README 不指向未发布的 npm 包')
 
 const changelog = fs.readFileSync(path.join(HERE, '..', 'CHANGELOG.md'), 'utf8')
 ok(changelog.includes('0.1.0'), 'CHANGELOG 有 0.1.0')
@@ -1355,7 +1365,8 @@ const releasing = fs.readFileSync(path.join(HERE, '..', 'RELEASING.md'), 'utf8')
 ok(releasing.includes('npm pack --dry-run'), '发版文档要求核 pack 清单')
 
 const pkg = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8'))
-eq(pkg.version, '0.2.0', 'package.json 版本是 0.2.0')
+eq(pkg.version, PKG.version, 'package.json 版本自洽')
+ok(changelog.trim().split('\n').slice(0, 8).join('\n').includes('## ' + PKG.version), 'CHANGELOG 顶部有当前版本')
 eq(pkg.name, 'dsh-github-digest', '包名正确')
 ok(!pkg.private, 'package.json 没有 private:true')
 ok(pkg.dsh && pkg.dsh.client && pkg.dsh.bundle, 'package.json 有 dsh 清单')

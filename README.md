@@ -43,11 +43,11 @@ dsh plugin --profile desktop add github:kx121/dsh-github-digest
 dsh plugin --profile desktop add https://github.com/kx121/dsh-github-digest/releases/download/v0.2.0/dsh-github-digest-0.2.0.tgz
 ```
 
-装完重启 DSH，侧边栏出现「GitHub 日报」，设置页出现「GitHub 日报表」。
+装完重启 DSH，侧边栏出现「GitHub 日报」，设置页出现「GitHub 日报设置」。
 
 ## 30 秒配好
 
-1. 设置 → **GitHub 日报表** → 「关注仓库」填仓库全名，一行一个：
+1. 设置 → **GitHub 日报设置** → 「关注仓库」填仓库全名，一行一个：
 
    ```
    deepseek-ai/deepseek-harness
@@ -175,7 +175,7 @@ GitHub 的数据量确实大，所以这个插件做了三件事：**先粗筛�
   pending-run.json     本轮临时数据（成本基线 / 粗筛缓存）
   apply-probe.json     插件加载探针（排障用）
 <工作区>/.github-digest/
-  YYYY-MM-DD.md        日报（会话写的文件必须落在工作区内，否则每轮弹权限审批）
+  YYYY-MM-DD-N.md      日报（N 是当天第几轮；必须落在工作区内，否则每轮弹权限审批）
 ```
 
 ## 安全边界
@@ -188,7 +188,7 @@ GitHub 的数据量确实大，所以这个插件做了三件事：**先粗筛�
 ## FAQ
 
 **Q：必须填 token 吗？**
-不用。插件会先自动去本机找，找不到就匿名跑。匿名 60 次/小时，一轮 3–8 次，定时一天一次永远碰不到上限。
+不用。插件会先自动去本机找，找不到就匿名跑。匿名 60 次/小时，一轮 3–14 次，定时一天一次永远碰不到上限。
 
 **Q：能监控私有仓库吗？**
 能，但要填一个有权限的 token。
@@ -231,10 +231,10 @@ It is **read-only** — it never creates issues, stars repos, or pushes anything
 **Install**
 
 ```bash
-dsh plugin --profile <profile> add dsh-github-digest
+dsh plugin --profile <profile> add github:kx121/dsh-github-digest
 ```
 
-**Configuration** lives in Settings → GitHub Digest. Data: `~/.dsh/github-digest`; daily reports: `<workspace>/.github-digest/YYYY-MM-DD.md`.
+**Configuration** lives in Settings → GitHub Digest. Data: `~/.dsh/github-digest`; daily reports: `<workspace>/.github-digest/YYYY-MM-DD-N.md`.
 
 **License**: MIT.
 
