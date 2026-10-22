@@ -1,14 +1,36 @@
 # Changelog
 
+## 0.2.0 — 2026-10-22
+
+### 改名
+
+`github-duty` → `dsh-github-digest`。
+
+DSH 生态里已经有四个 `*-duty` 插件（`dsh-telegram-duty`、`dsh-cc98-duty`、`dsh-plugin-feishu-duty`、`dsh-duty-separation-proof`），搜索时混在一起。`digest` 也更贴近这个插件实际干的事：把关注范围内的变化摘出来给你看。
+
+连带改动：
+
+- 工具：`gh_duty_*` → `gh_digest_*`（7 个）
+- 路由：`/github-duty/*` → `/github-digest/*`（7 条）
+- 插件 id 与包名：`dsh-github-digest`
+- 数据目录：`~/.dsh/github-duty` → `~/.dsh/github-digest`
+- 工作区日报目录：`.github-duty/` → `.github-digest/`
+
+旧数据不会自动搬。升级前把 `~/.dsh/github-duty` 整个复制成 `~/.dsh/github-digest` 再启动，判重表和执行记录都在里面。
+
+### 界面
+
+- 设置页标题「GitHub 值班表」改为「GitHub 日报设置」，侧边栏「GitHub 值班」改为「GitHub 日报」。
+
 ## 0.1.1 — 2026-10-22
 
 ### 面板
 
-- 值班记录加「全部 / 发现 / 关注」来源分栏。`items_json` 新增可选 `source`（`watch` / `discover`）；老数据没有这个字段，按当前关注列表反推。
+- 日报记录加「全部 / 发现 / 关注」来源分栏。`items_json` 新增可选 `source`（`watch` / `discover`）；老数据没有这个字段，按当前关注列表反推。
 - 每个条目右侧加关注按钮，点一下写进本机 `watch_repos`，再点取消。只改本地配置，不对 GitHub 发任何写请求。
 - 关注视图顶部列出所有关注仓库和上次检查结果：首次检查 / 未发现更新 / 有新推送 / 很久没动静 / 尚未检查。不用翻记录就知道哪些项目没动。
-- 新路由 `POST /github-duty/watch`：只增删一个关注仓库，不覆盖其它配置。关注满 60 个返回 `WATCH_FULL`，不再静默截断。
-- 值班记录加历史搜索：项目名 + 是什么 / 变化 / 影响 / 建议全文模糊搜，空格分隔多词按 AND 匹配。搜的是服务端 history.jsonl（最多 500 轮），不受面板只显示最近 20 轮的限制；搜索结果同样吃来源 / 推荐度 / 时间三个筛选。
+- 新路由 `POST /github-digest/watch`：只增删一个关注仓库，不覆盖其它配置。关注满 60 个返回 `WATCH_FULL`，不再静默截断。
+- 日报记录加历史搜索：项目名 + 是什么 / 变化 / 影响 / 建议全文模糊搜，空格分隔多词按 AND 匹配。搜的是服务端 history.jsonl（最多 500 轮），不受面板只显示最近 20 轮的限制；搜索结果同样吃来源 / 推荐度 / 时间三个筛选。
 - 字号滑块：记录区（含搜索结果）文字 0.85×–1.6× 缩放。字号走 CSS 变量 `--gd-fs`，面板其它区域不受影响；偏好存 localStorage，不写配置文件。
 - 四栏标签改成气泡：是什么（灰蓝）/ 变化（灰绿）/ 影响（灰金）/ 建议（灰紫），文字色 + 同色系 15% 半透明底。只占一小块，正文仍用次要色；标签不再带冒号。
 - 新增「GitHub 热门」榜单：今日 / 本周 / 本月三档，列出时间窗内新建、star 最多的项目，每条可以一键加关注。走 `api.github.com` 的 Search 接口自己算，不抓 `github.com/trending` 页面（那个域名在很多网络下直连不通）。默认收起，展开才拉；结果服务端缓存 30 分钟。
@@ -23,7 +45,7 @@
 
 ### 修复
 
-- `gh_duty_brief` 的 watch-state 新增 `lastDelta`（面板据此显示状态）；修掉用户填写的 owner/repo 大小写与 GitHub 返回值不一致时，把检查过的仓库重新当成首次检查的问题。
+- `gh_digest_brief` 的 watch-state 新增 `lastDelta`（面板据此显示状态）；修掉用户填写的 owner/repo 大小写与 GitHub 返回值不一致时，把检查过的仓库重新当成首次检查的问题。
 - 搜索框在输入法组词期间不再发起搜索。之前打拼音时会把 `bi` 当成查询词，组词过程中一直显示「找到 0 条」，选完字结果才整批跳出来。现在监听 `compositionstart` / `compositionend`，组词结束才搜；组词中失焦也会重置状态，不会把后续搜索卡死。
 - 搜索时查询串里的标点一律当分隔符：`rea，逆向`、`rea、逆向`、`rea；逆向` 跟 `rea 逆向` 一样能搜到。只切句读符号，`.` `-` `_` `/` `@` 保留下来（版本号和仓库名本身要用，切了 `v1.3.3` 会变成 `v1 3 3`）。
 
@@ -33,20 +55,20 @@
 
 ### 功能
 
-- 定时唤醒会话跑一轮 GitHub 值班：粗筛 → 细读 → 按准则判断 → 写日报 → 记判重表 / 执行记录。
-- 7 个工具：`gh_duty_info` / `gh_duty_brief` / `gh_duty_watch` / `gh_duty_discover` / `gh_duty_seen_query` / `gh_duty_seen_add` / `gh_duty_run_add`。
+- 定时唤醒会话跑一轮 GitHub 日报：粗筛 → 细读 → 按准则判断 → 写日报 → 记判重表 / 执行记录。
+- 7 个工具：`gh_digest_info` / `gh_digest_brief` / `gh_digest_watch` / `gh_digest_discover` / `gh_digest_seen_query` / `gh_digest_seen_add` / `gh_digest_run_add`。
 - 关注仓库模式 + 按主题发现模式（主题轮换、判重过滤、冷门配额）。
-- 侧边栏面板：本轮 / 累计 / 今日消耗、每项目体量、值班记录、推荐程度与时间筛选、平滑滚动。
+- 侧边栏面板：本轮 / 累计 / 今日消耗、每项目体量、日报记录、推荐程度与时间筛选、平滑滚动。
 - 设置页：仓库、主题、定时、目标会话、工作区、读取开关、冷门配额、只读 token（含本机凭据自动探测）。
 - 成本核算：dsh-cost-meter 账本 + 会话投影缓存差值；并发污染时标记 `≈`，不假装精确。
-- 日报写进 `<工作区>/.github-duty/`，避免会话写入工作区外触发权限审批。
+- 日报写进 `<工作区>/.github-digest/`，避免会话写入工作区外触发权限审批。
 
 ### 判断质量
 
 - 新增「我的背景」（`profile_note`）：设置页一句话说明用户在做什么，注入唤醒消息，作为「对你有没有用」的第一依据。
 - `items_json` 新增 `confidence`（`high` / `medium` / `low`），面板显示「把握」徽标；拿不准的结论不再和确定结论混在一起。
 - `topicHits` 在仓库没填 topics 时退回名字 / 描述做词边界匹配（新项目很大比例不填 topics，只比 topics 会让判断依据失效）。
-- 报告文件名统一为 `YYYY-MM-DD-N.md`，`gh_duty_info` 直接返回 `todayRuns` 与 `runIndexHint`，不让模型自己数轮次。
+- 报告文件名统一为 `YYYY-MM-DD-N.md`，`gh_digest_info` 直接返回 `todayRuns` 与 `runIndexHint`，不让模型自己数轮次。
 
 ### 判重与配额
 

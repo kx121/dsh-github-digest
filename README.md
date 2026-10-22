@@ -1,4 +1,4 @@
-# github-duty
+# dsh-github-digest
 
 > 你的 GitHub 关注清单，每天有人替你看一遍，只告诉你「变了什么、要不要跟」。
 
@@ -7,7 +7,7 @@
 
 ## 它和别的 GitHub 插件有什么不一样
 
-| | 热榜 / RSS 类插件 | github-duty |
+| | 热榜 / RSS 类插件 | dsh-github-digest |
 | --- | --- | --- |
 | 关注对象 | 全生态榜单 / 你订阅的 feed | **你指定的仓库 + 你关心的主题** |
 | 做什么 | 抓下来、排名、摘要 | 抓下来，**判断值不值得看、要不要跟** |
@@ -20,34 +20,34 @@
 
 ```
 定时器（60 秒一跳，到点才动）
-   └─ 把一轮值班任务投进你选的会话（自动唤醒空闲会话）
+   └─ 把一轮日报任务投进你选的会话（自动唤醒空闲会话）
         └─ 会话里的 AI 调插件的工具：
-             gh_duty_info     配置与额度
-             gh_duty_brief    粗筛：一次 Search 拿 40 个仓库的元信息
-             gh_duty_watch    细读：只对筛出来的仓库拉 releases / commits / README
-             gh_duty_discover 按主题发现新项目
-             gh_duty_seen_*   判重：这个版本看过没
-             gh_duty_run_add  执行记录 + 面板数据
+             gh_digest_info     配置与额度
+             gh_digest_brief    粗筛：一次 Search 拿 40 个仓库的元信息
+             gh_digest_watch    细读：只对筛出来的仓库拉 releases / commits / README
+             gh_digest_discover 按主题发现新项目
+             gh_digest_seen_*   判重：这个版本看过没
+             gh_digest_run_add  执行记录 + 面板数据
         └─ 按自带准则判断 → 写日报 → 记判重表 → 写执行记录
 ```
 
-判断逻辑不在插件里，在 `prompts/duty.md`：**能解决具体问题、有可跑的代码、版本有实际变化**才值得看，star 高不算理由。这份准则随插件发布，可以自己改。
+判断逻辑不在插件里，在 `prompts/digest.md`：**能解决具体问题、有可跑的代码、版本有实际变化**才值得看，star 高不算理由。这份准则随插件发布，可以自己改。
 
 ## 安装
 
 ```bash
 # 从 GitHub 装
-dsh plugin --profile desktop add github:kx121/github-duty
+dsh plugin --profile desktop add github:kx121/dsh-github-digest
 
 # 或直接装 Release 里的 tarball
-dsh plugin --profile desktop add https://github.com/kx121/github-duty/releases/download/v0.1.0/github-duty-0.1.0.tgz
+dsh plugin --profile desktop add https://github.com/kx121/dsh-github-digest/releases/download/v0.2.0/dsh-github-digest-0.2.0.tgz
 ```
 
-装完重启 DSH，侧边栏出现「GitHub 值班」，设置页出现「GitHub 值班表」。
+装完重启 DSH，侧边栏出现「GitHub 日报」，设置页出现「GitHub 日报表」。
 
 ## 30 秒配好
 
-1. 设置 → **GitHub 值班表** → 「关注仓库」填仓库全名，一行一个：
+1. 设置 → **GitHub 日报表** → 「关注仓库」填仓库全名，一行一个：
 
    ```
    deepseek-ai/deepseek-harness
@@ -59,12 +59,12 @@ dsh plugin --profile desktop add https://github.com/kx121/github-duty/releases/d
    下面还有个「我的背景」，一句话说清你在做什么（比如「做 DSH 插件和自动化脚本，关注成本、稳定性」）。
    判断「对你有没有用」时模型会先看它；不填就按主题和关注仓库推断。
 
-2. 「目标会话」留空 = 每轮自动新建或复用当天的值班会话；也可以指定一个固定会话。
+2. 「目标会话」留空 = 每轮自动新建或复用当天的日报会话；也可以指定一个固定会话。
 
 3. 「定时」选每天，时间填 `12:30`（谷时，模型便宜一半）。
 
-4. 点「保存」，再点「立即跑一轮」。结果在侧边栏「GitHub 值班」里看，日报写进
-   `<工作区>/.github-duty/YYYY-MM-DD-N.md`（N 是当天第几轮）。
+4. 点「保存」，再点「立即跑一轮」。结果在侧边栏「GitHub 日报」里看，日报写进
+   `<工作区>/.github-digest/YYYY-MM-DD-N.md`（N 是当天第几轮）。
 
 不用配 token 也能跑。插件会自动从本机找已有的 GitHub 凭据，找不到就匿名跑。
 
@@ -118,15 +118,15 @@ GitHub 的数据量确实大，所以这个插件做了三件事：**先粗筛�
 | release 正文截断 | 600 字符 | 够判断「改了什么」，不读完整个 changelog |
 | 每轮最多看几个仓库 | 40 | 粗筛本身不贵，贵在细读；收取上限才是成本的闸门 |
 
-> **值班会自己开一个会话，并且当天复用同一个。** 日报写进文件、结果进侧边栏面板，你不需要去那个会话里看。
+> **日报会自己开一个会话，并且当天复用同一个。** 日报写进文件、结果进侧边栏面板，你不需要去那个会话里看。
 > 想固定用某个会话，在设置页「目标会话」里指定，之后永远用它。
 
 ## 侧边栏面板
 
-点侧边栏「GitHub 值班」：
+点侧边栏「GitHub 日报」：
 
-- 消耗：本轮费用 / 值班累计 / 今日全部（含其他会话）/ 各项目体量
-- 值班记录：每轮一条，带项目编号、推荐程度、变化 / 影响 / 建议
+- 消耗：本轮费用 / 日报累计 / 今日全部（含其他会话）/ 各项目体量
+- 日报记录：每轮一条，带项目编号、推荐程度、变化 / 影响 / 建议
 - 筛选：按推荐程度、按时间（今天 / 3 天 / 7 天）
 - 来源分栏：全部 / 发现 / 关注。发现模式扫到的项目和关注仓库的记录分开看
 - 历史搜索：按项目名和「是什么 / 变化 / 影响 / 建议」全文模糊搜，空格分隔多个词按「全部命中」算。搜的是整个 history.jsonl（最多 500 轮），不只是面板上的最近 20 轮。命中的词会高亮出来
@@ -140,7 +140,7 @@ GitHub 的数据量确实大，所以这个插件做了三件事：**先粗筛�
 ## 日报长什么样
 
 ```markdown
-# GitHub 值班 2026-10-22
+# GitHub 日报 2026-10-22
 
 额度：42/60｜模式：定时｜关注仓库 3 个｜粗筛 3 个、细读 2 个
 
@@ -166,7 +166,7 @@ GitHub 的数据量确实大，所以这个插件做了三件事：**先粗筛�
 ## 数据存在哪
 
 ```
-~/.dsh/github-duty/
+~/.dsh/github-digest/
   config.json          设置页存的值（含 token，权限只给当前用户）
   seen.md              判重表：仓库 / 处置 / 理由 / 首次看到
   runs.md              执行记录：时间 / 触发 / 结果 / 关注 / 收取 / 跳过 / 额度 / 备注
@@ -174,7 +174,7 @@ GitHub 的数据量确实大，所以这个插件做了三件事：**先粗筛�
   watch-state.json     每个仓库上次检查时间、发现模式的主题游标
   pending-run.json     本轮临时数据（成本基线 / 粗筛缓存）
   apply-probe.json     插件加载探针（排障用）
-<工作区>/.github-duty/
+<工作区>/.github-digest/
   YYYY-MM-DD.md        日报（会话写的文件必须落在工作区内，否则每轮弹权限审批）
 ```
 
@@ -218,23 +218,23 @@ npm test        # 离线冒烟测试（不连网、不碰真实数据）
 
 ## English
 
-**github-duty** is a [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) plugin that wakes a session on a schedule,
+**dsh-github-digest** is a [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) plugin that wakes a session on a schedule,
 scans the GitHub repos and topics you care about, decides what is actually worth reading, and writes a daily report.
 It is **read-only** — it never creates issues, stars repos, or pushes anything.
 
-- 7 tools: `gh_duty_info`, `gh_duty_brief`, `gh_duty_watch`, `gh_duty_discover`, `gh_duty_seen_query`, `gh_duty_seen_add`, `gh_duty_run_add`.
+- 7 tools: `gh_digest_info`, `gh_digest_brief`, `gh_digest_watch`, `gh_digest_discover`, `gh_digest_seen_query`, `gh_digest_seen_add`, `gh_digest_run_add`.
 - One Search request for the whole watch list (up to 40 repos), then 1–2 requests per repo that actually changed.
 - Works without a token (60 requests/hour) and auto-detects existing GitHub credentials on the machine.
-- The judging rules live in `prompts/duty.md` and are shipped with the plugin — change them to fit your taste.
+- The judging rules live in `prompts/digest.md` and are shipped with the plugin — change them to fit your taste.
 - Sidebar panel: cost per round, cumulative cost, per-project token volume, run history with filters.
 
 **Install**
 
 ```bash
-dsh plugin --profile <profile> add github-duty
+dsh plugin --profile <profile> add dsh-github-digest
 ```
 
-**Configuration** lives in Settings → GitHub Duty. Data: `~/.dsh/github-duty`; daily reports: `<workspace>/.github-duty/YYYY-MM-DD.md`.
+**Configuration** lives in Settings → GitHub Digest. Data: `~/.dsh/github-digest`; daily reports: `<workspace>/.github-digest/YYYY-MM-DD.md`.
 
 **License**: MIT.
 

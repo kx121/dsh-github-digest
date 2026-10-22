@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "GitHub 值班表",
+    "title": "GitHub 日报",
     "description": "定时唤醒会话去扫 GitHub，挑出值得看的项目与版本，写日报、维护判重表。只读，不碰账号。"
   }
 }

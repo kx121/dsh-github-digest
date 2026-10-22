@@ -1,5 +1,5 @@
 /**
- * github-duty 离线冒烟测试。
+ * github-digest 离线冒烟测试。
  *
  * 全部离线：不连 DSH、不发真实网络请求、不碰真实 ~/.dsh 数据。
  * 覆盖：纯函数 / 持久化 / GitHub 客户端 / 凭据 / 成本 / 调度 / mock 宿主集成 / 工具 / 路由 / 客户端契约 / 文档一致性。
@@ -12,7 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'github-duty-test-'))
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'github-digest-test-'))
 process.env.DSH_HOME = TMP
 const WS = path.join(TMP, 'workspace')
 
@@ -116,7 +116,7 @@ eq(t.readScheduleState(schedFile).lastRunDate, '2026-10-22', '调度状态能读
 
 // ── 3. Markdown 表格 / 判重表 / 执行记录 ────────────────────────────────
 const seenFile = path.join(TMP, 'seen.md')
-const addSeen = t.appendRow(seenFile, 'github-duty 判重表', t.SEEN_COLUMNS, ['owner/demo@v1.0.0', '收取', '修了 a|b 的 bug', '2026-10-22'])
+const addSeen = t.appendRow(seenFile, 'github-digest 判重表', t.SEEN_COLUMNS, ['owner/demo@v1.0.0', '收取', '修了 a|b 的 bug', '2026-10-22'])
 ok(addSeen.ok, '判重表能追加')
 const seen1 = t.readSeen(seenFile)
 ok(seen1.readable, '判重表可读')
@@ -127,7 +127,7 @@ const missingSeen = t.readSeen(path.join(TMP, 'no-seen.md'))
 ok(missingSeen.readable && missingSeen.rows.length === 0, '判重表不存在时 readable 且空')
 
 const runsFile = path.join(TMP, 'runs.md')
-t.appendRow(runsFile, 'github-duty 执行记录', t.RUN_COLUMNS, ['2026-10-22 12:30:00', 'schedule', 'ok', 3, 1, 2, '42/60', '备注'])
+t.appendRow(runsFile, 'github-digest 执行记录', t.RUN_COLUMNS, ['2026-10-22 12:30:00', 'schedule', 'ok', 3, 1, 2, '42/60', '备注'])
 const runs1 = t.readRuns(runsFile, 20)
 eq(runs1.total, 1, '执行记录 1 行')
 eq(runs1.rows[0].trigger, 'schedule', '执行记录触发字段')
@@ -328,7 +328,7 @@ const todayKey = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + p
 fs.writeFileSync(path.join(costDir, 'ledger.json'), JSON.stringify({
   version: 1,
   config: { currency: 'CNY' },
-  days: { [todayKey]: { date: todayKey, input: 12000, output: 3000, cacheRead: 90000, calls: 8, cost: 1, costCny: 7.2, sessions: [{ id: 'session-x', at: Date.now(), input: 12000, output: 3000, cacheRead: 90000, calls: 8, costCny: 0.0231, title: 'GitHub 值班' }] } },
+  days: { [todayKey]: { date: todayKey, input: 12000, output: 3000, cacheRead: 90000, calls: 8, cost: 1, costCny: 7.2, sessions: [{ id: 'session-x', at: Date.now(), input: 12000, output: 3000, cacheRead: 90000, calls: 8, costCny: 0.0231, title: 'GitHub 日报' }] } },
 }), 'utf8')
 const ledgerFile = path.join(costDir, 'ledger.json')
 const cost = t.readCostMeter(ledgerFile, todayKey)
@@ -388,17 +388,17 @@ eq(t.normalizeWorkspace('C:\\a\\..\\b'), '', '含 .. 的路径被拒')
 eq(t.normalizeWorkspace('\\\\server\\share'), '', 'UNC 被拒')
 eq(t.normalizeWorkspace('file:///c:/x'), '', 'file: 协议被拒')
 const wsPaths = t.resolvePaths('C:\\Users\\x\\default-workspace')
-ok(wsPaths.outDir.endsWith('.github-duty'), '日报目录在 .github-duty 下')
+ok(wsPaths.outDir.endsWith('.github-digest'), '日报目录在 .github-digest 下')
 ok(wsPaths.outDir.startsWith('C:\\Users\\x\\default-workspace'), '日报目录在工作区内（不触发写入审批）')
-ok(wsPaths.home.endsWith('github-duty'), '数据目录仍是插件家目录')
+ok(wsPaths.home.endsWith('github-digest'), '数据目录仍是插件家目录')
 ok(wsPaths.seen.startsWith(wsPaths.home), '判重表在插件目录（host 直接写，不经过会话权限）')
 ok(wsPaths.runs.startsWith(wsPaths.home), '执行记录在插件目录')
 eq(wsPaths.config, path.join(wsPaths.home, 'config.json'), '配置文件在数据目录')
-ok(t.resolvePaths('').outDir.includes('.github-duty'), '不给工作区也能返回（回落进程 cwd）')
+ok(t.resolvePaths('').outDir.includes('.github-digest'), '不给工作区也能返回（回落进程 cwd）')
 
 // ── 12. 唤醒消息 ─────────────────────────────────────────────────────
 const wakePrompt = t.readPromptText()
-ok(wakePrompt.source === 'plugin' && wakePrompt.text.includes('GitHub 值班准则'), '能读到准则文件')
+ok(wakePrompt.source === 'plugin' && wakePrompt.text.includes('GitHub 日报准则'), '能读到准则文件')
 const wakePaths = { seen: 'X/seen.md', runs: 'X/runs.md', outDir: 'X/out' }
 const msg1 = t.buildWakeMessage(t.normalizeConfig({ topics: ['mcp', 'llm'], cold_pick_min: 2, cold_pick_max_stars: 500 }), wakePaths, wakePrompt.text, {
   trigger: 'manual',
@@ -410,7 +410,7 @@ ok(msg1.includes('manual'), '唤醒消息带触发来源')
 ok(msg1.includes('冷门配额：每轮至少收 2 条'), '唤醒消息带冷门配额')
 ok(msg1.includes('系统凭据管理器'), '唤醒消息带凭据来源')
 ok(msg1.includes('X/seen.md'), '唤醒消息带判重表路径')
-ok(msg1.includes('GitHub 值班准则'), '唤醒消息带准则正文')
+ok(msg1.includes('GitHub 日报准则'), '唤醒消息带准则正文')
 ok(msg1.includes('本轮走发现模式'), '关注仓库为空时提示走发现模式')
 const msgNoCold = t.buildWakeMessage(t.normalizeConfig({}), wakePaths, 'P', { trigger: 'schedule', firedAt: 'T' })
 ok(msgNoCold.includes('冷门配额：不限'), '配额为 0 时显示不限')
@@ -439,7 +439,7 @@ eq(t.methodNames(null), [], 'null 返回空数组')
 // ── 14. mock 宿主：apply 装配 ────────────────────────────────────────
 import { EventEmitter } from 'node:events'
 
-const PLUGIN_DATA = path.join(TMP, 'github-duty')
+const PLUGIN_DATA = path.join(TMP, 'github-digest')
 fs.mkdirSync(WS, { recursive: true })
 fs.mkdirSync(PLUGIN_DATA, { recursive: true })
 
@@ -521,13 +521,13 @@ function createMockContext(options = {}) {
 
 const boot = createMockContext()
 host.apply(boot.ctx, {})
-eq([...boot.state.toolMap.keys()].sort(), ['gh_duty_brief', 'gh_duty_discover', 'gh_duty_info', 'gh_duty_run_add', 'gh_duty_seen_add', 'gh_duty_seen_query', 'gh_duty_watch'], '7 个工具都注册上了')
+eq([...boot.state.toolMap.keys()].sort(), ['gh_digest_brief', 'gh_digest_discover', 'gh_digest_info', 'gh_digest_run_add', 'gh_digest_seen_add', 'gh_digest_seen_query', 'gh_digest_watch'], '7 个工具都注册上了')
 eq(boot.state.routes.length, 7, '7 条 HTTP 路由都注册了（config / watch / status / panel / search / trending / run-now）')
 eq(boot.state.intervals.length, 1, '定时器只启动一次')
 eq(boot.state.intervals[0].seconds, 60000, '定时器 60 秒一跳（宿主 interval 是毫秒制）')
 const probeAfterApply = JSON.parse(fs.readFileSync(path.join(PLUGIN_DATA, 'apply-probe.json'), 'utf8'))
 eq(probeAfterApply.phase, 'apply-ok', 'apply 探针记录 apply-ok')
-eq(probeAfterApply.version, '0.1.1', '探针版本来自 package.json')
+eq(probeAfterApply.version, '0.2.0', '探针版本来自 package.json')
 
 // ── 15. runtime + 调度层 fire ────────────────────────────────────────
 const integ = createMockContext()
@@ -571,9 +571,9 @@ eq(fired1.sessionId, 'session-created-1', '返回新建的会话 id')
 eq(integ.state.messages.length, 1, '投递了 1 条消息')
 const delivered = integ.state.messages[0]
 eq(delivered.role, 'user', '投递消息 role=user')
-eq(delivered.source.kind, 'github-duty', '投递消息 source.kind=github-duty')
-ok(String(delivered.content[0].text).includes('【github-duty】'), '投递消息带值班标题')
-ok(String(delivered.content[0].text).includes('GitHub 值班准则'), '投递消息带准则正文')
+eq(delivered.source.kind, 'github-digest', '投递消息 source.kind=github-digest')
+ok(String(delivered.content[0].text).includes('【github-digest】'), '投递消息带日报标题')
+ok(String(delivered.content[0].text).includes('GitHub 日报准则'), '投递消息带准则正文')
 eq(integ.state.renames.length, 1, '新会话尝试改名')
 ok(integ.state.renames[0].title.includes('GitHub 项目推荐'), '会话名包含 GitHub 项目推荐')
 const firedRuns = t.readRuns(runsFile2, 5)
@@ -650,7 +650,7 @@ eq(firedPrompt.ok, true, 'prompt 兜底能投递')
 eq(firedPrompt.deliveredVia, 'sessionController.prompt', '记录 prompt 投递方式')
 eq(promptCalls.length, 1, 'prompt 被调用一次')
 eq(promptCalls[0].sessionId, 'session-cold-2', 'prompt 投到复用的会话')
-ok(String(promptCalls[0].content[0].text).includes('【github-duty】'), 'prompt 内容带值班标题')
+ok(String(promptCalls[0].content[0].text).includes('【github-digest】'), 'prompt 内容带日报标题')
 delete integ.state.services.sessionController.prompt
 
 // 15.7 每轮新开会话
@@ -738,33 +738,33 @@ const fakeClient = {
 toolRuntime.clientFor = () => fakeClient
 
 // info
-const infoResult = await toolMap.get('gh_duty_info').execute({})
+const infoResult = await toolMap.get('gh_digest_info').execute({})
 eq(infoResult.ok, true, 'info 返回 ok')
 ok(infoResult.paths.outDir.replace(/\\/g, '/').startsWith(WS.replace(/\\/g, '/')), 'info 的日报目录在工作区内')
 eq(infoResult.tokenPresent, false, 'info 反映真实凭据状态（匿名）')
 
 // brief：没有关注仓库也没有主题
-const briefEmpty = await toolMap.get('gh_duty_brief').execute({})
+const briefEmpty = await toolMap.get('gh_digest_brief').execute({})
 eq(briefEmpty.ok, false, '没有可看的仓库时 brief 返回失败')
 eq(briefEmpty.code, 'NO_REPOS', 'brief 失败码 NO_REPOS')
 
 // brief：正常 + unchanged 短路 + dormant
 t.saveStoredConfig({ watch_repos: ['a/b', 'c/d', 'e/old'], topics: ['mcp'] }, toolConfig)
-const brief1 = await toolMap.get('gh_duty_brief').execute({})
+const brief1 = await toolMap.get('gh_digest_brief').execute({})
 eq(brief1.ok, true, 'brief 正常返回')
 eq(brief1.count, 3, 'brief 覆盖 3 个仓库')
 eq(brief1.repos[0].topicHits, ['mcp'], 'brief 带主题命中')
 ok(brief1.repos.some((item) => item.dormant === true), '长期未推送的新仓库走 dormant 短路')
 ok(fs.existsSync(toolPending), 'brief 把元信息缓存进 pending')
-const brief2 = await toolMap.get('gh_duty_brief').execute({})
+const brief2 = await toolMap.get('gh_digest_brief').execute({})
 const unchangedItem = brief2.repos.find((item) => item.repo === 'a/b')
 ok(unchangedItem && unchangedItem.unchanged === true, '12 小时内未推送走 unchanged 短路')
 ok(brief2.requestsSaved >= 1, '短路计数正确')
 
 // watch：缓存复用 + 判重过滤 + commits since
-t.appendRow(toolSeen, 'github-duty 判重表', t.SEEN_COLUMNS, ['a/b', '收取', '之前看过', '2026-10-01'])
-t.appendRow(toolSeen, 'github-duty 判重表', t.SEEN_COLUMNS, ['a/b@v1.0.0', '收取', 'v1.0.0 看过', '2026-10-01'])
-const watch1 = await toolMap.get('gh_duty_watch').execute({ repo: 'a/b' })
+t.appendRow(toolSeen, 'github-digest 判重表', t.SEEN_COLUMNS, ['a/b', '收取', '之前看过', '2026-10-01'])
+t.appendRow(toolSeen, 'github-digest 判重表', t.SEEN_COLUMNS, ['a/b@v1.0.0', '收取', 'v1.0.0 看过', '2026-10-01'])
+const watch1 = await toolMap.get('gh_digest_watch').execute({ repo: 'a/b' })
 eq(watch1.ok, true, 'watch 正常返回')
 eq(watch1.repo.fullName, 'a/b', 'watch 返回仓库元信息')
 eq(watch1.dataSource, 'brief-cache', 'watch 复用 brief 缓存')
@@ -774,20 +774,20 @@ eq(watch1.releasesSkipped, 1, '统计被过滤的版本数')
 eq(watch1.commits.length, 1, 'watch 返回 commits')
 eq(watch1.commitsSince, '2026-10-01', 'commits 从判重表 firstSeen 起增量')
 eq(watch1.quota, '39/60', 'watch 带额度')
-const watchBad = await toolMap.get('gh_duty_watch').execute({ repo: 'bad' })
+const watchBad = await toolMap.get('gh_digest_watch').execute({ repo: 'bad' })
 eq(watchBad.ok, false, 'watch 非法仓库返回失败')
 eq(watchBad.code, 'BAD_REPO_REF', 'watch 非法仓库错误码正确')
-const watch404 = await toolMap.get('gh_duty_watch').execute({ repo: 'x/y' })
+const watch404 = await toolMap.get('gh_digest_watch').execute({ repo: 'x/y' })
 eq(watch404.ok, false, 'watch 404 返回失败')
 eq(watch404.code, 'NOT_FOUND', 'watch 404 错误码正确')
 t.saveStoredConfig({ watch_repos: ['a/b'], topics: ['mcp'], read_readme: true }, toolConfig)
-const watchReadme = await toolMap.get('gh_duty_watch').execute({ repo: 'a/b' })
+const watchReadme = await toolMap.get('gh_digest_watch').execute({ repo: 'a/b' })
 eq(watchReadme.readme, '# README', '打开 read_readme 后 watch 返回 README')
 
 // discover
 t.saveStoredConfig({ topics: ['mcp'], min_stars: 0, discover_created_within_days: 30 }, toolConfig)
-t.appendRow(toolSeen, 'github-duty 判重表', t.SEEN_COLUMNS, ['c/three', '跳过', '看过', '2026-10-01'])
-const discover1 = await toolMap.get('gh_duty_discover').execute({})
+t.appendRow(toolSeen, 'github-digest 判重表', t.SEEN_COLUMNS, ['c/three', '跳过', '看过', '2026-10-01'])
+const discover1 = await toolMap.get('gh_digest_discover').execute({})
 eq(discover1.ok, true, 'discover 正常返回')
 eq(discover1.returned, 2, 'discover 只返回没见过的仓库')
 eq(discover1.filteredBySeen, 1, 'discover 过滤掉判重表里的仓库')
@@ -795,23 +795,23 @@ eq(discover1.topic, 'mcp', 'discover 用上了主题')
 ok(discover1.repos[0].topicHits.length > 0, 'discover 带主题命中')
 ok(fs.existsSync(toolWatch), 'discover 写入 watch-state（主题游标）')
 t.saveStoredConfig({ topics: ['mcp', 'llm'], min_stars: 0, discover_created_within_days: 0 }, toolConfig)
-const discover2 = await toolMap.get('gh_duty_discover').execute({ query: 'topic:custom', limit: 1 })
+const discover2 = await toolMap.get('gh_digest_discover').execute({ query: 'topic:custom', limit: 1 })
 eq(discover2.builtinQuery, false, '自定义 query 不走主题轮换')
 eq(discover2.repos.length, 1, 'limit 生效')
 
 // seen
-t.appendRow(toolSeen, 'github-duty 判重表', t.SEEN_COLUMNS, ['seen/one@v2.0.0', '收取', '测试', '2026-10-01'])
-const seenHit = await toolMap.get('gh_duty_seen_query').execute({ repo: 'seen/one' })
+t.appendRow(toolSeen, 'github-digest 判重表', t.SEEN_COLUMNS, ['seen/one@v2.0.0', '收取', '测试', '2026-10-01'])
+const seenHit = await toolMap.get('gh_digest_seen_query').execute({ repo: 'seen/one' })
 eq(seenHit.found, true, 'seen_query 能查到记录')
-const seenMiss = await toolMap.get('gh_duty_seen_query').execute({ repo: 'none/none' })
+const seenMiss = await toolMap.get('gh_digest_seen_query').execute({ repo: 'none/none' })
 eq(seenMiss.found, false, 'seen_query 查不到返回 found:false')
-const seenAdd = await toolMap.get('gh_duty_seen_add').execute({ repo: 'new/repo@v0.1.0', disposition: '跳过', reason: '不相关' })
+const seenAdd = await toolMap.get('gh_digest_seen_add').execute({ repo: 'new/repo@v0.1.0', disposition: '跳过', reason: '不相关' })
 eq(seenAdd.ok, true, 'seen_add 能写')
-const seenVerify = await toolMap.get('gh_duty_seen_query').execute({ repo: 'new/repo@v0.1.0' })
+const seenVerify = await toolMap.get('gh_digest_seen_query').execute({ repo: 'new/repo@v0.1.0' })
 eq(seenVerify.found, true, 'seen_add 写进去之后 seen_query 查得到')
-const seenBad = await toolMap.get('gh_duty_seen_add').execute({ repo: '../etc/passwd', disposition: '收取' })
+const seenBad = await toolMap.get('gh_digest_seen_add').execute({ repo: '../etc/passwd', disposition: '收取' })
 eq(seenBad.ok, false, 'seen_add 拒绝非法仓库')
-const seenNoArgs = await toolMap.get('gh_duty_seen_query').execute({})
+const seenNoArgs = await toolMap.get('gh_digest_seen_query').execute({})
 eq(seenNoArgs.hint, '没给 repo 或 query', 'seen_query 没给参数时返回提示')
 
 // run_add
@@ -822,7 +822,7 @@ t.writePending(toolPending, {
   repos: { 'a/b': 3000, 'c/d': 1000 },
   costBase: { input: 400, output: 200, cacheRead: 4000, cost: 0.004, turns: 4 },
 })
-const runAdd = await toolMap.get('gh_duty_run_add').execute({
+const runAdd = await toolMap.get('gh_digest_run_add').execute({
   trigger: 'manual',
   result: 'ok',
   watched: 3,
@@ -840,10 +840,10 @@ eq(t.readPending(toolPending), null, 'run_add 后 pending 被清掉')
 const historyRows = t.readHistory(toolHistory, 5)
 eq(historyRows[0].items[0].repo, 'a/b', 'history 写入明细')
 eq(historyRows[0].sessionId, fakeSessionId, 'history 记录会话 id')
-const runAddBadItems = await toolMap.get('gh_duty_run_add').execute({ trigger: 'manual', result: 'ok', items_json: 'not-json' })
+const runAddBadItems = await toolMap.get('gh_digest_run_add').execute({ trigger: 'manual', result: 'ok', items_json: 'not-json' })
 eq(runAddBadItems.ok, true, 'items_json 坏掉不影响执行记录')
 ok(runAddBadItems.itemsError.includes('解析失败'), 'items_json 坏掉给出提示')
-const runAddEmpty = await toolMap.get('gh_duty_run_add').execute({ trigger: 'manual', result: 'failed' })
+const runAddEmpty = await toolMap.get('gh_digest_run_add').execute({ trigger: 'manual', result: 'failed' })
 eq(runAddEmpty.ok, true, 'run_add 允许空明细')
 
 // ── 16b. 候选补记 / 主题兜底 / 背景 / 当天轮次 ─────────────────────────
@@ -870,10 +870,10 @@ eq(t.readPendingCandidates(candFile, Date.now() + t.CANDIDATE_TTL_MS + 1000).rep
 try { fs.rmSync(toolSeen, { force: true }) } catch { /* 忽略 */ }
 resetCand()
 t.saveStoredConfig({ topics: ['mcp'], min_stars: 0, discover_created_within_days: 0 }, toolConfig)
-const discover3 = await toolMap.get('gh_duty_discover').execute({})
+const discover3 = await toolMap.get('gh_digest_discover').execute({})
 eq(discover3.returned, 3, '判重表清空后 discover 返回全部候选')
 eq(t.readPendingCandidates(candFile).repos.length, 3, 'discover 把本轮候选写进暂存')
-const runAuto = await toolMap.get('gh_duty_run_add').execute({
+const runAuto = await toolMap.get('gh_digest_run_add').execute({
   trigger: 'manual',
   result: 'ok',
   kept: 1,
@@ -883,7 +883,7 @@ eq(runAuto.autoSeen, 3, 'run_add 自动补记 items 与未处理候选')
 const seenAuto = t.readSeen(toolSeen)
 ok(seenAuto.rows.some((row) => row.repo === 'c/three' && row.disposition === '跳过'), '未处理候选写进判重表')
 ok(!fs.existsSync(candFile), '补记后候选暂存被清空')
-const discover4 = await toolMap.get('gh_duty_discover').execute({})
+const discover4 = await toolMap.get('gh_digest_discover').execute({})
 eq(discover4.returned, 0, '补记过的候选下一轮不会原样再出现')
 
 // 背景：归一化 + 唤醒消息注入
@@ -897,7 +897,7 @@ const wakeMsgAnon = t.buildWakeMessage(t.normalizeConfig({}), t.resolvePaths(WS)
 ok(wakeMsgAnon.includes('60 次/小时'), '匿名时唤醒消息提示 60')
 
 // info：当天轮次 + 报告命名提示
-const infoAfter = await toolMap.get('gh_duty_info').execute({})
+const infoAfter = await toolMap.get('gh_digest_info').execute({})
 ok(Number.isInteger(infoAfter.todayRuns) && infoAfter.todayRuns >= 1, 'info 返回当天已跑轮次')
 ok(String(infoAfter.runIndexHint).includes('-'), 'info 给出报告命名提示')
 ok(Object.prototype.hasOwnProperty.call(infoAfter, 'profile_note'), 'info 透出 profile_note')
@@ -944,7 +944,7 @@ function callRoute(handler, options = {}) {
 }
 
 resetToolFiles()
-const configGet = await callRoute(routeOf('/github-duty/config').handler)
+const configGet = await callRoute(routeOf('/github-digest/config').handler)
 eq(configGet.status, 200, 'GET /config 200')
 eq(configGet.body.ok, true, 'GET /config ok')
 eq(configGet.body.config.token, '', 'GET /config 不回明文 token')
@@ -952,70 +952,70 @@ eq(configGet.body.config.tokenConfigured, false, 'GET /config 带 tokenConfigure
 ok(Array.isArray(configGet.body.sessions), 'GET /config 带会话下拉')
 eq(configGet.body.status.ok, true, 'GET /config 带运行状态')
 
-const configPost = await callRoute(routeOf('/github-duty/config').handler, { method: 'POST', body: { min_stars: 123, topics: ['mcp', 'ai agent'] } })
+const configPost = await callRoute(routeOf('/github-digest/config').handler, { method: 'POST', body: { min_stars: 123, topics: ['mcp', 'ai agent'] } })
 eq(configPost.status, 200, 'POST /config 200')
 eq(configPost.body.config.min_stars, 123, 'POST /config 保存生效')
 eq(configPost.body.config.topics, ['mcp', 'ai agent'], 'POST /config 保留多词主题')
 const storedConfig = JSON.parse(fs.readFileSync(toolConfig, 'utf8'))
 eq(storedConfig.min_stars, 123, '配置真的写进 config.json')
 
-const configPost2 = await callRoute(routeOf('/github-duty/config').handler, { method: 'POST', body: { max_items_per_run: 3 } })
+const configPost2 = await callRoute(routeOf('/github-digest/config').handler, { method: 'POST', body: { max_items_per_run: 3 } })
 eq(configPost2.body.config.max_items_per_run, 3, '第二次 POST 合并配置')
 eq(configPost2.body.config.min_stars, 123, '第二次 POST 保留未提交字段')
 
 // token 保留 / 清除
 t.saveStoredConfig({ token: 'ghp_' + 'a'.repeat(36) }, toolConfig)
-const configKeepToken = await callRoute(routeOf('/github-duty/config').handler, { method: 'POST', body: { max_items_per_run: 5 } })
+const configKeepToken = await callRoute(routeOf('/github-digest/config').handler, { method: 'POST', body: { max_items_per_run: 5 } })
 eq(configKeepToken.body.config.tokenConfigured, true, 'POST 不带 token 时保留原 token')
-const configClearToken = await callRoute(routeOf('/github-duty/config').handler, { method: 'POST', body: { clear_token: true } })
+const configClearToken = await callRoute(routeOf('/github-digest/config').handler, { method: 'POST', body: { clear_token: true } })
 eq(configClearToken.body.config.tokenConfigured, false, 'clear_token 能清空 token')
 eq(JSON.parse(fs.readFileSync(toolConfig, 'utf8')).token, '', 'token 清除真的落盘')
 
-const statusRoute = await callRoute(routeOf('/github-duty/status').handler)
+const statusRoute = await callRoute(routeOf('/github-digest/status').handler)
 eq(statusRoute.status, 200, 'GET /status 200')
-eq(statusRoute.body.version, '0.1.1', 'GET /status 返回版本号')
-const panelRoute = await callRoute(routeOf('/github-duty/panel').handler)
+eq(statusRoute.body.version, '0.2.0', 'GET /status 返回版本号')
+const panelRoute = await callRoute(routeOf('/github-digest/panel').handler)
 eq(panelRoute.status, 200, 'GET /panel 200')
 ok(Array.isArray(panelRoute.body.history), 'GET /panel 带 history')
 ok(panelRoute.body.cost && typeof panelRoute.body.cost === 'object', 'GET /panel 带 cost')
 
-const runNowRoute = await callRoute(routeOf('/github-duty/run-now').handler, { method: 'POST' })
+const runNowRoute = await callRoute(routeOf('/github-digest/run-now').handler, { method: 'POST' })
 eq(runNowRoute.status, 200, 'POST /run-now 200')
 eq(runNowRoute.body.sessionId, 'session-route', 'POST /run-now 返回会话 id')
-const runNowWrongMethod = await callRoute(routeOf('/github-duty/run-now').handler, { method: 'GET' })
+const runNowWrongMethod = await callRoute(routeOf('/github-digest/run-now').handler, { method: 'GET' })
 eq(runNowWrongMethod.status, 405, 'GET /run-now 405')
-const configWrongMethod = await callRoute(routeOf('/github-duty/config').handler, { method: 'PUT' })
+const configWrongMethod = await callRoute(routeOf('/github-digest/config').handler, { method: 'PUT' })
 eq(configWrongMethod.status, 405, 'PUT /config 405')
 
 // 关注仓库的增删走独立路由：只动 watch_repos，不覆盖其它字段。
-const watchGet = await callRoute(routeOf('/github-duty/watch').handler)
+const watchGet = await callRoute(routeOf('/github-digest/watch').handler)
 eq(watchGet.status, 200, 'GET /watch 200')
 ok(Array.isArray(watchGet.body.repos), 'GET /watch 带关注列表')
 eq(watchGet.body.limit, 60, 'GET /watch 带上限')
-const watchAdd = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'Ollama/Ollama', op: 'add' } })
+const watchAdd = await callRoute(routeOf('/github-digest/watch').handler, { method: 'POST', body: { repo: 'Ollama/Ollama', op: 'add' } })
 eq(watchAdd.status, 200, 'POST /watch add 200')
 eq(watchAdd.body.changed, true, 'POST /watch add 真的改了')
 eq(watchAdd.body.repos, ['Ollama/Ollama'], 'POST /watch 返回新列表')
-const watchDup = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'ollama/OLLAMA', op: 'add' } })
+const watchDup = await callRoute(routeOf('/github-digest/watch').handler, { method: 'POST', body: { repo: 'ollama/OLLAMA', op: 'add' } })
 eq(watchDup.body.changed, false, '重复关注幂等（大小写不敏感）')
-const watchSecond = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'deepseek-ai/deepseek-harness', op: 'add' } })
+const watchSecond = await callRoute(routeOf('/github-digest/watch').handler, { method: 'POST', body: { repo: 'deepseek-ai/deepseek-harness', op: 'add' } })
 eq(watchSecond.body.count, 2, '能关注第二个仓库')
 const watchOtherConfig = JSON.parse(fs.readFileSync(path.join(PLUGIN_DATA, 'config.json'), 'utf8'))
 eq(watchOtherConfig.max_items_per_run, 5, 'POST /watch 不动其它配置项')
-const watchBadRef = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: '../etc/passwd', op: 'add' } })
+const watchBadRef = await callRoute(routeOf('/github-digest/watch').handler, { method: 'POST', body: { repo: '../etc/passwd', op: 'add' } })
 eq(watchBadRef.status, 400, '非法仓库名返回 400')
 eq(watchBadRef.body.code, 'BAD_REPO_REF', '非法仓库名带 BAD_REPO_REF')
-const watchRemove = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'ollama/ollama', op: 'remove' } })
+const watchRemove = await callRoute(routeOf('/github-digest/watch').handler, { method: 'POST', body: { repo: 'ollama/ollama', op: 'remove' } })
 eq(watchRemove.body.changed, true, '取消关注生效')
 eq(watchRemove.body.repos, ['deepseek-ai/deepseek-harness'], '取消关注后列表只剩一个')
-const watchRemoveAgain = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'ollama/ollama', op: 'remove' } })
+const watchRemoveAgain = await callRoute(routeOf('/github-digest/watch').handler, { method: 'POST', body: { repo: 'ollama/ollama', op: 'remove' } })
 eq(watchRemoveAgain.body.changed, false, '取消不存在的关注幂等')
 // 满额要明确报错，不能静默截断
 t.saveStoredConfig({ watch_repos: Array.from({ length: 60 }, (_, i) => 'owner' + i + '/repo' + i) })
-const watchFull = await callRoute(routeOf('/github-duty/watch').handler, { method: 'POST', body: { repo: 'one/more', op: 'add' } })
+const watchFull = await callRoute(routeOf('/github-digest/watch').handler, { method: 'POST', body: { repo: 'one/more', op: 'add' } })
 eq(watchFull.status, 409, '关注满了返回 409')
 eq(watchFull.body.code, 'WATCH_FULL', '关注满了带 WATCH_FULL')
-const watchWrongMethod = await callRoute(routeOf('/github-duty/watch').handler, { method: 'PUT' })
+const watchWrongMethod = await callRoute(routeOf('/github-digest/watch').handler, { method: 'PUT' })
 eq(watchWrongMethod.status, 405, 'PUT /watch 405')
 
 // 历史搜索：面板只有最近 20 轮，更早的靠服务端搜 history.jsonl
@@ -1023,14 +1023,14 @@ t.appendHistory(path.join(PLUGIN_DATA, 'history.jsonl'), {
   at: '2026-10-22 13:00:00',
   items: [{ repo: 'search/probe', verdict: 'worth', stars: 12, what: '搜索测试项目', whatChanged: 'v1 首次出现', impact: '无', action: '看看' }],
 })
-const searchEmpty = await callRoute(routeOf('/github-duty/search').handler, { method: 'POST', body: { q: '   ' } })
+const searchEmpty = await callRoute(routeOf('/github-digest/search').handler, { method: 'POST', body: { q: '   ' } })
 eq(searchEmpty.status, 200, 'POST /search 200')
 eq(searchEmpty.body.count, 0, '空搜索词返回 0 条')
-const searchHit = await callRoute(routeOf('/github-duty/search').handler, { method: 'POST', body: { q: '搜索测试' } })
+const searchHit = await callRoute(routeOf('/github-digest/search').handler, { method: 'POST', body: { q: '搜索测试' } })
 eq(searchHit.body.count >= 1, true, 'POST /search 能命中历史里的项目')
 eq(searchHit.body.hits[0].repo, 'search/probe', '搜索结果带仓库名')
 eq(searchHit.body.hits[0].what, '搜索测试项目', '搜索结果带「是什么」')
-const searchWrongMethod = await callRoute(routeOf('/github-duty/search').handler, { method: 'GET' })
+const searchWrongMethod = await callRoute(routeOf('/github-digest/search').handler, { method: 'GET' })
 eq(searchWrongMethod.status, 405, 'GET /search 405')
 
 // 热门榜单：用 Search API 自己算，不抓 github.com/trending
@@ -1076,17 +1076,17 @@ eq(tr3.cached, false, '超过 30 分钟缓存失效')
 eq(trendingCalls.length, 2, '缓存失效后重新请求')
 
 routeRuntime.clientFor = () => fakeTrendingClient
-const trendingRoute = await callRoute(routeOf('/github-duty/trending').handler, { method: 'POST', body: { window: 'month' } })
+const trendingRoute = await callRoute(routeOf('/github-digest/trending').handler, { method: 'POST', body: { window: 'month' } })
 eq(trendingRoute.status, 200, 'POST /trending 200')
 eq(trendingRoute.body.ok, true, 'POST /trending 返回 ok')
 ok(Array.isArray(trendingRoute.body.items), 'POST /trending 带 items')
 ok(trendingRoute.body.availableWindows && trendingRoute.body.availableWindows.week, 'POST /trending 带可用的时间窗')
-const trendingWrongMethod = await callRoute(routeOf('/github-duty/trending').handler, { method: 'GET' })
+const trendingWrongMethod = await callRoute(routeOf('/github-digest/trending').handler, { method: 'GET' })
 eq(trendingWrongMethod.status, 405, 'GET /trending 405')
 const trendingBadClient = { searchRepos: async () => ({ ok: false, error: { code: 'RATE_LIMITED', message: '配额用完' } }) }
 routeRuntime.clientFor = () => trendingBadClient
 t.clearTrendingCache()
-const trendingFail = await callRoute(routeOf('/github-duty/trending').handler, { method: 'POST', body: { window: 'day' } })
+const trendingFail = await callRoute(routeOf('/github-digest/trending').handler, { method: 'POST', body: { window: 'day' } })
 eq(trendingFail.status, 502, '拉取失败返回 502')
 eq(trendingFail.body.error.code, 'RATE_LIMITED', '失败时透传 GitHub 错误码')
 eq(host.__test__.requestRejection(routeBoot.ctx, { headers: { host: '127.0.0.1:57356', origin: 'https://evil.example.com' } }), 403, '跨站 Origin 被拒')
@@ -1159,7 +1159,7 @@ eq(t.splitQuery('v1.3.3'), ['v1.3.3'], '点号不切（版本号的一部分）'
 eq(t.splitQuery('  ，。  '), [], '全是标点切出空词')
 eq(t.searchHistory(panelPaths, 'acme，记忆').length, 1, '带标点的查询能搜到')
 const statusPayload = await host.__test__.buildStatus(panelRuntime)
-eq(statusPayload.version, '0.1.1', '状态快照带版本号')
+eq(statusPayload.version, '0.2.0', '状态快照带版本号')
 ok(statusPayload.paths.outDir.startsWith(WS), '状态快照的日报目录在工作区')
 
 // ── 19. 客户端静态契约 ──────────────────────────────────────────────
@@ -1168,16 +1168,16 @@ ok(statusPayload.paths.outDir.startsWith(WS), '状态快照的日报目录在工
 const clientSrc = fs.readFileSync(path.join(HERE, '..', 'lib', 'client.js'), 'utf8')
 ok(clientSrc.includes('window.__ModuleLoader__.load({'), '客户端按 ModuleLoader 协议注册')
 ok(!/^import\s/m.test(clientSrc), '客户端没有顶层 import（平台只认单文件 classic script）')
-ok(clientSrc.includes("id: 'github-duty'"), '客户端模块 id 正确')
+ok(clientSrc.includes("id: 'github-digest'"), '客户端模块 id 正确')
 ok(clientSrc.includes('settings.section'), '注册设置页槽位')
 ok(clientSrc.includes('sidebar.panellist'), '注册侧边栏入口')
-ok(clientSrc.includes("name: 'main', key: 'github-duty'"), '注册侧边栏主面板')
+ok(clientSrc.includes("name: 'main', key: 'github-digest'"), '注册侧边栏主面板')
 ok(clientSrc.includes('function SettingsPage()'), '设置页组件存在')
-ok(clientSrc.includes('function DutyPanel()'), '值班面板组件存在')
+ok(clientSrc.includes('function DigestPanel()'), '日报面板组件存在')
 ok(clientSrc.includes('const SidebarIcon = () =>'), '侧边栏图标组件存在')
 
 // 关注 / 来源分栏契约
-ok(clientSrc.includes('/github-duty/watch'), '面板调 /github-duty/watch 关注路由')
+ok(clientSrc.includes('/github-digest/watch'), '面板调 /github-digest/watch 关注路由')
 ok(clientSrc.includes('SOURCE_FILTERS'), '面板有来源分栏（全部 / 发现 / 关注）')
 ok(clientSrc.includes('WatchListCard'), '面板有关注列表卡片')
 ok(clientSrc.includes('未发现更新'), '关注视图显示「未发现更新」')
@@ -1186,7 +1186,7 @@ ok(clientSrc.includes('itemSource'), '面板能判定条目来源（老数据反
 ok(clientSrc.includes('gd-item-watch'), '条目右侧有关注按钮样式')
 
 // 历史搜索契约
-ok(clientSrc.includes('/github-duty/search'), '面板调 /github-duty/search 搜索历史')
+ok(clientSrc.includes('/github-digest/search'), '面板调 /github-digest/search 搜索历史')
 ok(clientSrc.includes('gd-search'), '面板有搜索输入框样式')
 ok(clientSrc.includes('searchQuery'), '搜索有防抖后的词状态')
 ok(clientSrc.includes('filteredHits'), '搜索结果同样吃来源 / 推荐度 / 时间筛选')
@@ -1226,7 +1226,7 @@ ok(clientSrc.includes('if (composing) return undefined'), '组词期间跳过 de
 ok(clientSrc.includes('onBlur: () => setComposing(false)'), '组词中失焦也能重置状态')
 
 // 热门榜单
-ok(clientSrc.includes('/github-duty/trending'), '面板调 /github-duty/trending')
+ok(clientSrc.includes('/github-digest/trending'), '面板调 /github-digest/trending')
 ok(clientSrc.includes('GitHub 热门'), '面板有榜单区块')
 ok(clientSrc.includes('trendingOpen'), '榜单默认收起，展开才拉')
 ok(clientSrc.includes('不需要挂梯子'), '面板说明榜单走 api.github.com')
@@ -1324,8 +1324,8 @@ ok(clientSrc.includes("busy === 'run' ? '启动中…' : '立即跑一轮'"), '�
 ok(clientSrc.includes('>刷新</button>') || clientSrc.includes("'刷新'"), '面板有刷新按钮')
 
 // ── 20. 文档 / 包一致性 ──────────────────────────────────────────────
-const promptDoc = fs.readFileSync(path.join(HERE, '..', 'prompts', 'duty.md'), 'utf8')
-ok(promptDoc.includes('GitHub 值班准则'), '准则文件存在且标题正确')
+const promptDoc = fs.readFileSync(path.join(HERE, '..', 'prompts', 'digest.md'), 'utf8')
+ok(promptDoc.includes('GitHub 日报准则'), '准则文件存在且标题正确')
 eq((promptDoc.match(/第二步：细读/g) || []).length, 1, '准则里「第二步」只出现一次（旧文档重复过）')
 ok(!promptDoc.includes('hasNew=false 的'), '准则不再引用默认不存在的 hasNew=false 说法')
 ok(promptDoc.includes('pushedSinceLast'), '准则讲到默认粗筛字段 pushedSinceLast')
@@ -1338,7 +1338,7 @@ const readmeDoc = fs.readFileSync(path.join(HERE, '..', 'README.md'), 'utf8')
 ok(readmeDoc.includes('## English'), 'README 带英文版')
 ok(readmeDoc.includes('40 个'), 'README 的默认仓库数与配置一致')
 ok(readmeDoc.includes('12:30'), 'README 的默认定时与配置一致')
-ok(readmeDoc.includes('.github-duty'), 'README 写明日报目录')
+ok(readmeDoc.includes('.github-digest'), 'README 写明日报目录')
 ok(readmeDoc.includes('304'), 'README 写明 304 仍扣配额')
 ok(!readmeDoc.includes('一天跑一轮售价'), 'README 没有乱码文案')
 
@@ -1355,8 +1355,8 @@ const releasing = fs.readFileSync(path.join(HERE, '..', 'RELEASING.md'), 'utf8')
 ok(releasing.includes('npm pack --dry-run'), '发版文档要求核 pack 清单')
 
 const pkg = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8'))
-eq(pkg.version, '0.1.1', 'package.json 版本是 0.1.1')
-eq(pkg.name, 'github-duty', '包名正确')
+eq(pkg.version, '0.2.0', 'package.json 版本是 0.2.0')
+eq(pkg.name, 'dsh-github-digest', '包名正确')
 ok(!pkg.private, 'package.json 没有 private:true')
 ok(pkg.dsh && pkg.dsh.client && pkg.dsh.bundle, 'package.json 有 dsh 清单')
 ok(Array.isArray(pkg.files) && pkg.files.includes('lib'), 'files 白名单包含 lib（客户端 bundle 不能漏）')
@@ -1369,7 +1369,7 @@ ok(fs.existsSync(path.join(HERE, '..', 'icon.svg')), 'icon.svg 存在')
 ok(fs.existsSync(path.join(HERE, '..', 'locale', 'zh.json')), '中文 locale 存在')
 ok(fs.existsSync(path.join(HERE, '..', 'locale', 'en.json')), '英文 locale 存在')
 const indexSrc = fs.readFileSync(path.join(HERE, '..', 'lib', 'index.js'), 'utf8')
-ok(indexSrc.includes("export const name = 'github-duty'"), '入口导出插件名')
+ok(indexSrc.includes("export const name = 'dsh-github-digest'"), '入口导出插件名')
 ok(indexSrc.includes("export const inject = ['timer', 'tools']"), '入口声明注入 timer / tools')
 ok(indexSrc.includes('apply-failed'), 'apply 失败会写探针而不是外抛')
 ok(!/process\.env\.GITHUB_TOKEN\s*=/.test(indexSrc), '入口不写环境变量')

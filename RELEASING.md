@@ -27,7 +27,7 @@ npm pack --dry-run
 逐项看清单：
 
 - **不能出现**：`config.json`（里面有 token）、`seen.md`、`runs.md`、`out/`、`history.jsonl`、本机绝对路径、任何 `.env`
-- **必须出现**：`lib/`（含 `client.js`，漏了客户端 bundle 插件会激活失败）、`prompts/duty.md`、`cordis.patch.yml`、`package.json`、`README.md`、`LICENSE`、`CHANGELOG.md`、`icon.svg`、`locale/*.json`
+- **必须出现**：`lib/`（含 `client.js`，漏了客户端 bundle 插件会激活失败）、`prompts/digest.md`、`cordis.patch.yml`、`package.json`、`README.md`、`LICENSE`、`CHANGELOG.md`、`icon.svg`、`locale/*.json`
 - `package.json` 里**不能有** `private: true`（会直接阻止 publish）
 - `files` 白名单不能包含运行时数据文件
 
@@ -36,7 +36,7 @@ npm pack --dry-run
 ```bash
 git add -A
 git commit -m "release: v0.1.0"
-git tag -a v0.1.0 -m "github-duty 0.1.0"
+git tag -a v0.1.0 -m "dsh-github-digest 0.1.0"
 git push origin main && git push origin v0.1.0
 ```
 
@@ -51,8 +51,8 @@ npm publish
 ## 6. 发布后验证（别只看退出码）
 
 ```bash
-npm view github-duty version --registry=https://registry.npmjs.org/
-npm pack github-duty@0.1.0 --dry-run
+npm view dsh-github-digest version --registry=https://registry.npmjs.org/
+npm pack dsh-github-digest@0.1.0 --dry-run
 ```
 
 再打开包页面看：README 渲染、icon、repository 链接、版本号与 tag 一致。
@@ -63,6 +63,6 @@ npm pack github-duty@0.1.0 --dry-run
 
 ## 8. 回滚（有限）
 
-- `npm unpublish github-duty@X.Y.Z`：仅 72 小时内，且该版本号永久不可复用
+- `npm unpublish dsh-github-digest@X.Y.Z`：仅 72 小时内，且该版本号永久不可复用
 - 超过 72 小时只能 `npm deprecate` 再发修复版
 - 所以第 3 步的核对比事后回滚便宜得多

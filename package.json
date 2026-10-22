@@ -1,15 +1,15 @@
 {
-  "name": "github-duty",
-  "version": "0.1.1",
+  "name": "dsh-github-digest",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "到点叫醒 DSH 会话，翻你关注的 GitHub 仓库和主题，挑出值得跟的变化，写日报、记判重表。只读。",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kx121/github-duty.git"
+    "url": "git+https://github.com/kx121/dsh-github-digest.git"
   },
-  "homepage": "https://github.com/kx121/github-duty#readme",
+  "homepage": "https://github.com/kx121/dsh-github-digest#readme",
   "bugs": {
-    "url": "https://github.com/kx121/github-duty/issues"
+    "url": "https://github.com/kx121/dsh-github-digest/issues"
   },
   "keywords": [
     "dsh",
@@ -17,7 +17,7 @@
     "deepseek-harness",
     "github",
     "schedule",
-    "duty",
+    "digest",
     "automation"
   ],
   "type": "module",

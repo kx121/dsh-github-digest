@@ -11,7 +11,7 @@
 通道层        lib/github.js       只读 REST + Search（错误分类、ETag 缓存、批量查询）
 记录层        lib/store.js        seen.md / runs.md / history.jsonl / watch-state / pending
 成本层        lib/cost.js         cost-meter 账本 + 会话投影缓存差值
-判断层        prompts/duty.md     投给会话 AI 的准则；插件本身不调 LLM
+判断层        prompts/digest.md     投给会话 AI 的准则；插件本身不调 LLM
 ```
 
 目录：
@@ -38,7 +38,7 @@ lib/
   tools/              7 个工具（schema / info / brief / watch / discover / seen / runs）
   client.js           Web 客户端（设置页 + 侧边栏面板），单文件
 tools/smoke-test.mjs  离线冒烟测试
-prompts/duty.md       判断准则（随包发布，用户可改）
+prompts/digest.md       判断准则（随包发布，用户可改）
 ```
 
 ## 宿主事实（别重复踩）
@@ -91,17 +91,17 @@ factory 体里任何 throw 都会让 web boot 判定 entry failed，所以整段
 
 | 文件 | 位置 | 写入方 | 说明 |
 | --- | --- | --- | --- |
-| config.json | ~/.dsh/github-duty | host | 设置页存的值；token 明文只在这 |
-| seen.md | ~/.dsh/github-duty | host（工具） | 判重表，Markdown 表格 |
-| runs.md | ~/.dsh/github-duty | host（工具） | 执行记录，Markdown 表格 |
-| history.jsonl | ~/.dsh/github-duty | host（run_add） | 面板结构化数据，超 1MB 截到最近 500 条 |
-| watch-state.json | ~/.dsh/github-duty | host（brief/discover） | 每仓库 pushedAt/checkedAt、discoverCursor |
-| pending-run.json | ~/.dsh/github-duty | host | 本轮临时数据；fire 时写成本基线，run_add 清掉 |
-| schedule-state.json | ~/.dsh/github-duty | host | lastRunDate / lastFireAt / lastFireReason |
-| apply-probe.json | ~/.dsh/github-duty | host | 加载探针，排障用 |
-| YYYY-MM-DD.md | <工作区>/.github-duty | **会话** | 日报；必须落在会话工作区内，否则每轮弹权限审批 |
+| config.json | ~/.dsh/github-digest | host | 设置页存的值；token 明文只在这 |
+| seen.md | ~/.dsh/github-digest | host（工具） | 判重表，Markdown 表格 |
+| runs.md | ~/.dsh/github-digest | host（工具） | 执行记录，Markdown 表格 |
+| history.jsonl | ~/.dsh/github-digest | host（run_add） | 面板结构化数据，超 1MB 截到最近 500 条 |
+| watch-state.json | ~/.dsh/github-digest | host（brief/discover） | 每仓库 pushedAt/checkedAt、discoverCursor |
+| pending-run.json | ~/.dsh/github-digest | host | 本轮临时数据；fire 时写成本基线，run_add 清掉 |
+| schedule-state.json | ~/.dsh/github-digest | host | lastRunDate / lastFireAt / lastFireReason |
+| apply-probe.json | ~/.dsh/github-digest | host | 加载探针，排障用 |
+| YYYY-MM-DD.md | <工作区>/.github-digest | **会话** | 日报；必须落在会话工作区内，否则每轮弹权限审批 |
 
-旧版日报在 `~/.dsh/github-duty/out/`，面板仍会兼容读取，但不再写入。
+旧版日报在 `~/.dsh/github-digest/out/`，面板仍会兼容读取，但不再写入。
 
 ## 测试
 
