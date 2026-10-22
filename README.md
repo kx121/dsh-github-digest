@@ -36,11 +36,11 @@
 ## 安装
 
 ```bash
-# 从 npm（发布后）
-dsh plugin --profile <你的 profile> add github-duty
+# 从 GitHub 装
+dsh plugin --profile desktop add github:kx121/github-duty
 
-# 或从本地目录
-dsh plugin --profile <你的 profile> add /path/to/github-duty
+# 或直接装 Release 里的 tarball
+dsh plugin --profile desktop add https://github.com/kx121/github-duty/releases/download/v0.1.0/github-duty-0.1.0.tgz
 ```
 
 装完重启 DSH，侧边栏出现「GitHub 值班」，设置页出现「GitHub 值班表」。
