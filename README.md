@@ -40,7 +40,7 @@
 dsh plugin --profile desktop add github:kx121/dsh-github-digest
 
 # 或直接装 Release 里的 tarball
-dsh plugin --profile desktop add https://github.com/kx121/dsh-github-digest/releases/download/v0.2.1/dsh-github-digest-0.2.1.tgz
+dsh plugin --profile desktop add https://github.com/kx121/dsh-github-digest/releases/download/v0.2.2/dsh-github-digest-0.2.2.tgz
 ```
 
 装完重启 DSH，侧边栏出现「GitHub 日报」，设置页出现「GitHub 日报设置」。
@@ -128,12 +128,12 @@ GitHub 的数据量确实大，所以这个插件做了三件事：**先粗筛�
 - 消耗：本轮费用 / 日报累计 / 今日全部（含其他会话）/ 各项目体量
 - 日报记录：每轮一条，带项目编号、推荐程度、变化 / 影响 / 建议
 - 筛选：按推荐程度、按时间（今天 / 3 天 / 7 天）
-- 来源分栏：全部 / 发现 / 关注。发现模式扫到的项目和关注仓库的记录分开看
+- 来源分栏：全部 / 发现 / 关注 / 热门。发现模式扫到的项目、关注仓库的记录、热门榜单，分开看
 - 历史搜索：按项目名和「是什么 / 变化 / 影响 / 建议」全文模糊搜，空格分隔多个词按「全部命中」算。搜的是整个 history.jsonl（最多 500 轮），不只是面板上的最近 20 轮。命中的词会高亮出来
 - 字号滑块：记录区文字 0.85×–1.6× 缩放。偏好存在本机浏览器里（localStorage），不进配置文件，不影响面板其它区域
 - 四栏标签是小气泡（是什么 / 变化 / 影响 / 建议各自一个低饱和配色），扫记录时一眼能分清是哪一栏
 - 关注按钮：每条项目右边点一下就加进关注列表，再点取消。只改本机配置，不对 GitHub 发写请求
-- GitHub 热门：日报记录里的「热门」分栏，今日 / 本周 / 本月三档榜单，切过去才拉，30 分钟缓存。榜单带「是什么 / 最近推送 / 话题标签」，中文简介由默认模型批量生成（一次调用，按仓库缓存，超时或失败回退英文）。数据走 `api.github.com`，不依赖 `github.com` 网页（后者在国内经常直连不通）
+- GitHub 热门：来源分栏里的「热门」，今日 / 本周 / 本月三档榜单，切过去才拉，30 分钟缓存；右上角「刷新」跳过缓存重拉。榜单带「是什么 / 最近推送 / 话题标签」，中文简介由默认模型批量生成（一次调用，按仓库缓存，超时或失败回退英文；设置页可关）。数据走 `api.github.com`，不依赖 `github.com` 网页（后者在国内经常直连不通）
 - 关注视图顶部列出所有关注仓库和上次检查结果（未发现更新 / 有新推送 / 很久没动静 / 尚未检查），不用翻记录就知道哪些没动
 - 「立即跑一轮」直接触发
 
@@ -226,7 +226,7 @@ It is **read-only** — it never creates issues, stars repos, or pushes anything
 - One Search request for the whole watch list (up to 40 repos), then 1–2 requests per repo that actually changed.
 - Works without a token (60 requests/hour) and auto-detects existing GitHub credentials on the machine.
 - The judging rules live in `prompts/digest.md` and are shipped with the plugin — change them to fit your taste.
-- Sidebar panel: cost per round, cumulative cost, per-project token volume, run history with filters.
+- Sidebar panel: cost per round, cumulative cost, per-project token volume, run history with source tabs (all / discovered / watched / trending), full-history search and font scaling.
 
 **Install**
 
